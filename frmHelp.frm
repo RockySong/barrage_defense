@@ -1,12 +1,15 @@
 VERSION 5.00
 Begin VB.Form Form2 
    BackColor       =   &H00404040&
+   BorderStyle     =   1  'Fixed Single
    Caption         =   "µ¯Ä»·ÀÓù ËµÃ÷"
    ClientHeight    =   8205
-   ClientLeft      =   2265
-   ClientTop       =   1800
+   ClientLeft      =   2190
+   ClientTop       =   1725
    ClientWidth     =   11040
    LinkTopic       =   "Form2"
+   MaxButton       =   0   'False
+   MinButton       =   0   'False
    ScaleHeight     =   547
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   736
@@ -51,6 +54,7 @@ Begin VB.Form Form2
       ForeColor       =   &H0000FF00&
       Height          =   7935
       Left            =   120
+      Locked          =   -1  'True
       MultiLine       =   -1  'True
       ScrollBars      =   2  'Vertical
       TabIndex        =   0

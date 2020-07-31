@@ -1,12 +1,15 @@
 VERSION 5.00
 Begin VB.Form frmPlayer 
    BackColor       =   &H00404040&
+   BorderStyle     =   1  'Fixed Single
    Caption         =   "用户"
    ClientHeight    =   5220
-   ClientLeft      =   120
-   ClientTop       =   465
+   ClientLeft      =   45
+   ClientTop       =   390
    ClientWidth     =   9840
    LinkTopic       =   "Form3"
+   MaxButton       =   0   'False
+   MinButton       =   0   'False
    ScaleHeight     =   5220
    ScaleWidth      =   9840
    StartUpPosition =   3  '窗口缺省
@@ -248,7 +251,7 @@ Private Sub ShowPlayer(ndx As Long, lbl As Label)
     strSt = strSt & Chr$(13) & Chr$(10) & "战斗总数 : " & CStr(.playCnt)
     strSt = strSt & Chr$(13) & Chr$(10) & "胜利总数 : " & CStr(.winCnt)
     If .playCnt <> 0 Then
-        strSt = strSt & Chr$(13) & Chr$(10) & "胜利比率 : " & Format("0.0%", CDbl(.winCnt) / .playCnt)
+        strSt = strSt & Chr$(13) & Chr$(10) & "胜利比率 : " & Format("0.#%", CDbl(.winCnt) / .playCnt)
     Else
         strSt = strSt & Chr$(13) & Chr$(10) & "胜利比率 : -"
     End If

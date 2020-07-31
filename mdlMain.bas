@@ -2,11 +2,53 @@ Attribute VB_Name = "mdlMain"
 Public Declare Function GetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" (ByVal lpApplicationName As String, ByVal lpKeyName As Any, ByVal lpDefault As String, ByVal lpReturnedString As String, ByVal nSize As Long, ByVal lpFileName As String) As Long
 Public Declare Function WritePrivateProfileString Lib "kernel32" Alias "WritePrivateProfileStringA" (ByVal lpApplicationName As String, ByVal lpKeyName As Any, ByVal lpString As Any, ByVal lpFileName As String) As Long
 Public Declare Function ShellExecute Lib "shell32.dll" Alias "ShellExecuteA" (ByVal hwnd As Long, ByVal lpOperation As String, ByVal lpFile As String, ByVal lpParameters As String, ByVal lpDirectory As String, ByVal nShowCmd As Long) As Long
+Public Declare Function SendMessage Lib "user32" Alias "SendMessageA" _
+    (ByVal hwnd As Long, ByVal wMsg As Long, _
+    ByVal wParam As Long, lParam As String) As Long
+
+Public Declare Function GetWindowLong Lib "user32" Alias _
+    "GetWindowLongA" (ByVal hwnd As Long, _
+    ByVal nIndex As Long) As Long
+
+Public Declare Function SetWindowLong Lib "user32" Alias _
+        "SetWindowLongA" (ByVal hwnd As Long, ByVal nIndex _
+        As Long, ByVal dwNewLong As Long) As Long
+        
+Public Declare Function CallWindowProc Lib "user32" Alias _
+        "CallWindowProcA" (ByVal lpPrevWndFunc As Long, ByVal _
+        hwnd As Long, ByVal Msg As Long, ByVal wParam As _
+        Long, ByVal lParam As Long) As Long
+  
+Const GWL_WNDPROC = (-4&)
+
+Dim PrevWndProc&
+
+Private Const WM_DESTROY = &H2
+
+
+Public Declare Function TrackMouseEvent Lib "user32" (lpEventTrack As TRACKMOUSEEVENTTYPE) As Long
+
+Public Const TME_CANCEL = &H80000000
+Public Const TME_HOVER = &H1&
+Public Const TME_LEAVE = &H2&
+Public Const TME_NONCLIENT = &H10&
+Public Const TME_QUERY = &H40000000
+
+Private Const WM_MOUSELEAVE = &H2A3&
+
+Public Type TRACKMOUSEEVENTTYPE
+    cbSize As Long
+    dwFlags As Long
+    hwndTrack As Long
+    dwHoverTime As Long
+End Type
+
+Public bTracking As Boolean
 '----------------------------------constants-----------------------------
 Public Const DEGREE_PER_ARC As Single = 57.29578
 Public Const MAX_PROJ_CNT As Long = 1000
-Public Const MAX_TGT_CNT As Long = 12
-Public Const DRAW_PER_SEC As Long = 25
+Public Const MAX_TGT_CNT As Long = 14
+Public Const DRAW_PER_SEC As Long = 30
 Public Const PROJ_LIFETIME_SEC As Single = 6
 '----------------------------------types-----------------------------
 Public Type State_t
@@ -50,6 +92,7 @@ End Type
 Public Type KeyCmd_t
     keySensitivity As Single
     isdown As Boolean
+    isNewDown As Boolean
     keyCode As Long
 End Type
 
@@ -74,6 +117,7 @@ End Type
 Public Type Turret_t
     fastFireFactor As Long
     isFiring As Boolean
+    autoMode As Long ' 0=auto, 1 = semi
     isPlaying As Boolean
     accuracyErrDiv As Single
     projVelMo0 As Single
@@ -86,6 +130,7 @@ Public Type Turret_t
     tickToNextFire As Single
     tickReload As Single
     ammo As Ammo_t
+    burstRem As Long
 End Type
 
 Public Type Target_t
@@ -101,6 +146,7 @@ Public Type Target_t
 End Type
 
 Public Type Projectile_t
+    isShowDist As Boolean
     leftticks As Long
     vecVel As Vector3D_t
     ptPos As Point3D_t
@@ -110,10 +156,10 @@ Public Type Projectile_t
     color As COlRGB_t
 End Type
 
-Public Const STATE_INIT = 0
+Public Const STATE_STARTUP = 0
 Public Const STATE_PLAYING = 1
 Public Const STATE_SCORE = 2
-
+Public Const STATE_INIT = 3
 Public Type Player_t
     sName As String
     sPassword As String
@@ -135,6 +181,8 @@ Public Type Global_t
     projCnt As Long
     projs(0 To MAX_PROJ_CNT - 1) As Projectile_t
     tgtCnt As Long
+    isShowTgtDist As Boolean
+    isShowFloatingStat As Boolean
     tgts(0 To MAX_TGT_CNT - 1) As Target_t
     deads(0 To MAX_TGT_CNT - 1) As Target_t
     fpmSounds(0 To 100 - 1) As Long
@@ -142,17 +190,21 @@ Public Type Global_t
     killedCnt As Long
     escapeCnt As Long
     hitCnt As Long
-    isNewHit As Boolean
+    newHitTick As Long
     myHP As Single
     scoreBonus As Single
     players(0 To 100 - 1) As Player_t
     playerNdx As Long
     playerCnt As Long
     highestScoreNdx As Long
+    ts0 As Long
+    bulletTimeTick As Long
+    isButtletTimeOn As Boolean
 End Type
 '----------------------------------globals-----------------------------
 Public gv As Global_t
-
+Public Declare Function ShowCursor Lib "user32" (ByVal bShow As Long) As Long
+Public Declare Function GetTickCount Lib "kernel32" () As Long
 Public Declare Function sndPlaySound Lib "winmm.dll" Alias "sndPlaySoundA" (lpszSoundName As Any, ByVal uFlags As Long) As Long
 Public Declare Function PlaySound Lib "winmm.dll" Alias "PlaySoundA" _
     (ByVal lpszName As String, _
@@ -333,40 +385,36 @@ Public Sub Turret_FpmToTickPerFire(turret As Turret_t)
     turret.tickReload = turret.fpm / 60# * DRAW_PER_SEC
 End Sub
 
-Public Sub DrawAmmo(pic As PictureBox, Optional barLen As Long = 125)
+Public Sub DrawAmmo(pic As PictureBox, Optional barLen As Long = 150)
     Dim i As Long
     Dim y0 As Long
     Dim col As Long
     Dim X As Long
-    X = pic.ScaleWidth / 2 - 100 - 40
     With gv.turret.ammo
     If .reloadTickRem = 0 Then
         col = rgb(0, 205, 0)
-        i = .clipAmmoRemCnt * 200 / .clipSize
+        i = .clipAmmoRemCnt * barLen / .clipSize
     Else
         col = rgb(255, 245, 64)
-        i = .reloadTickRem * barLen / .reloadTickCnt
+        i = (.reloadTickCnt - .reloadTickRem) * barLen / .reloadTickCnt
     End If
     
-    If i = 0 And .clipAmmoRemCnt <> 0 Then
-        i = 1
-    End If
     y0 = Form1.lblAmmo.Top + Form1.lblAmmo.Height + 3
     X = Form1.LabelAmmoTitle.Left
     
-    pic.Line (X, y0 + 10 / 2)-(X + 200, y0 + 10 / 2), rgb(225, 255, 225)
-    pic.Line (X, y0)-(X + i, y0 + 10), col, BF
+    pic.Line (X, y0 + 6 / 2)-(X + barLen, y0 + 6 / 2), rgb(225, 255, 225)
+    pic.Line (X, y0)-(X + i, y0 + 6), col, BF
     End With
 End Sub
 
-Private Sub DrawHPBar(pic As PictureBox)
+Private Sub DrawHPBar(pic As PictureBox, Optional barLen As Long = 100)
     Dim X As Long, y0 As Long
     X = Form1.lblHPTitle.Left
     y0 = Form1.lblHPTitle.Top + Form1.lblHPTitle.Height
     pic.DrawStyle = 0
     col = rgb(255, 160, 225)
-    pic.Line (X, y0 + 10 / 2)-(X + 200, y0 + 10 / 2), rgb(225, 255, 225)
-    pic.Line (X, y0)-(X + gv.myHP * 2, y0 + 10), col, BF
+    pic.Line (X, y0 + 6 / 2)-(X + barLen, y0 + 6 / 2), rgb(225, 255, 225)
+    pic.Line (X, y0)-(X + gv.myHP, y0 + 6), col, BF
 End Sub
 Public Sub Render()
     Dim prjPt As Point3D_t, prjPt2 As Point3D_t
@@ -383,20 +431,16 @@ Public Sub Render()
     Dim rasterX As Long, rasterX2 As Long
     Dim rasterY As Long, rasterY2 As Long
     Dim score As Long
-    
+    Dim txtCol As Long
     Dim rasterW As Long, rasterH As Long
     Dim projR As Single
     Dim col As Long
     Dim bri As Long
+    Dim X As Long, Y As Long
     Dim pic As PictureBox
+    Dim fX As Single
     Set pic = Form1.pic
-    Form1.lblTimeRemaining = Format(gv.gameRemainTick / 1000, "0.0")
     
-    If gv.state = STATE_PLAYING Then
-        Form1.lblHP.Caption = Format(gv.myHP, "#")
-    Else
-        Form1.lblHP.Caption = "-"
-    End If
     Form1.lblAmmo.Caption = gv.turret.ammo.clipAmmoRemCnt & "/" & gv.turret.ammo.ammoRemCnt
     If gv.turret.ammo.reloadTickRem <> 0 Then
     Form1.lblAmmo.ForeColor = rgb(255, 255, 0)
@@ -425,6 +469,7 @@ Public Sub Render()
                 If gv.myHP > 0 Then
                     score = score * 2
                     .winCnt = .winCnt + 1
+                Else
                 End If
                 .scoreAcc = .scoreAcc + score
                 .playCnt = .playCnt + 1
@@ -440,6 +485,7 @@ Public Sub Render()
             With gv.players(gv.playerNdx)
             
             If gv.myHP > 0 And gv.gameRemainTick = 0 Then
+                PlaySound App.Path & "\victory.wav", 0, SND_ASYNC Or SND_FILENAME Or SND_LOOP
                 Form1.lblScore.BackColor = rgb(0, 50, 0)
                 Form1.lblScore.ForeColor = rgb(150, 255, 150)
                 Form1.lblScore.Caption = "得救了！我们爱你！" & gv.players(gv.playerNdx).sName & Chr$(13) & Chr$(10)
@@ -447,6 +493,7 @@ Public Sub Render()
                 Form1.lblScore.BackColor = rgb(50, 0, 0)
                 Form1.lblScore.ForeColor = rgb(255, 150, 150)
                 Form1.lblScore.Caption = "请再接再厉吧！" & Chr$(13) & Chr$(10)
+                PlaySound App.Path & "\defeat.wav", 0, SND_ASYNC Or SND_FILENAME Or SND_LOOP
             End If
             If isNewHighScore = True Then
                 Form1.lblScore.Caption = Form1.lblScore.Caption & "新高分！" & CStr(oldHighScore) & " -> " & CStr(score) & Chr$(13) & Chr$(10)
@@ -463,13 +510,14 @@ Public Sub Render()
         End If
         If Form1.lblScore.Visible = False Then
             Form1.lblScore.Visible = True
+            Form1.cmdNew.Visible = False
             Form1.cmdStart.Visible = True
             Form1.cmdUsers.Visible = True
             Form1.chkJoy.Enabled = True
             Form1.cmbDifficulty.Enabled = True
         End If
         gv.state = STATE_INIT
-        gv.gameRemainTick = 0
+        'gv.gameRemainTick = 0
     End If
     
     Form1.lblStat = CStr(gv.killedCnt) & "/" & CStr(gv.killedCnt + gv.escapeCnt)
@@ -487,13 +535,16 @@ Public Sub Render()
     If Form1.lblScore.Visible = True Then Exit Sub
     'render hp
     If gv.state = STATE_PLAYING Then
-        DrawHPBar Form1.pic
-        DrawAmmo Form1.pic
+        DrawHPBar Form1.picHUD
+        DrawAmmo Form1.picHUD
     End If
     With gv
         pic.DrawStyle = 0
         pic.DrawWidth = 2
         n = MAX_TGT_CNT - 1
+        pic.Font.Size = 10
+        pic.Font.Bold = True
+        pic.Font.Name = "Arial"
         For i = 0 To n
             With .tgts(i)
                 If .leftticks <> 0 Or .deadTicks <> 0 Then
@@ -533,17 +584,26 @@ Public Sub Render()
                                     bri = bri * (120 + .deadTicks) / 1200
                                     col = rgb(bri, 0, 0)
                                 End If
-                                If .distToHit < 300 And .leftticks > 0 Then
+                                If .distToHit < 255 And .leftticks > 0 Then
                                     If .leftticks Mod 200 < 100 Then
                                         col = rgb(255, 255, 255)
                                     End If
                                 End If
-                                 If .leftticks > 0 Then
+                                If .leftticks > 0 Then
                                     pic.Circle (rasterX, rasterY), projR, col
                                     pic.Circle (rasterX, rasterY), projR / 3, col
+                                    If gv.isShowTgtDist = True Then
+                                        pic.CurrentX = rasterX + projR + 2
+                                        pic.CurrentY = rasterY - 5
+                                        If .distToHit < 255 Then
+                                            txtCol = CLng(.distToHit)
+                                            pic.ForeColor = rgb(255, txtCol, 0)
+                                            pic.Print Format(.distToHit, "0")
+                                        End If
+                                    End If
                                 Else
-                                pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col
-                                pic.Line (rasterX + projR, rasterY - projR)-(rasterX - projR, rasterY + projR), col
+                                    pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col
+                                    pic.Line (rasterX + projR, rasterY - projR)-(rasterX - projR, rasterY + projR), col
                                 End If
                                 'pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col, BF
                             End If
@@ -554,6 +614,7 @@ Public Sub Render()
         pic.DrawWidth = 1
         '=======================================================
         n = MAX_PROJ_CNT - 1
+        pic.ForeColor = rgb(255, 255, 0)
         For i = 0 To n
             With .projs(i)
                 If .leftticks <> 0 Then
@@ -589,6 +650,11 @@ Public Sub Render()
                                 bri = 255
                             End If
                             pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), rgb(bri, bri, 0), BF
+                            If .isShowDist = True Then
+                                If .ptPos.z < 510 Then
+                                    pic.Print CLng(.ptPos.z)
+                                End If
+                            End If
                         End If
                     End If
                     .ptPosPrev = .ptPos
@@ -596,9 +662,10 @@ Public Sub Render()
             End With
         Next i
         'render aim helper
+        fX = CalcFocus + 4
         If gv.state = STATE_PLAYING Then
             pic.DrawStyle = 0
-            For i = 1 To 5
+            For i = 2 To 6
                 aimPos = gv.turret.cam.pos
                 aimPos.X = aimPos.X + .turret.cam.vecN.X * (30 + 3 ^ i)
                 aimPos.Y = aimPos.Y + .turret.cam.vecN.Y * (30 + 3 ^ i)
@@ -610,34 +677,66 @@ Public Sub Render()
                     rasterX = rasterW / 2 * prjPt.X / xMax + rasterW / 2
                     rasterY = -rasterH / 2 * prjPt.Y / yMax + rasterH / 2
                     If dist - cam.viewDist > 1 Then
-                        projR = 10 * 60 / ((dist - cam.viewDist))
+                        projR = fX * 60 / ((dist - cam.viewDist))
                     Else
-                        projR = 10 * 60
+                        projR = fX * 60
                     End If
                     bri = i * 51
-                    pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), rgb(0, bri, 0), B
+                    
+                    pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), rgb(gv.turret.autoMode * 255, bri, 0), B
                 End If
             Next i
+            If gv.isShowFloatingStat = True Then
+                X = pic.CurrentX + 30
+                pic.Font.Size = 12
+                pic.Font.Bold = False
+                pic.CurrentX = X
+                pic.CurrentY = pic.CurrentY - 33
+                pic.ForeColor = rgb(255, 158, 235) 'rgb(255, .turret.ammo.clipAmmoRemCnt * 255 / .turret.ammo.clipSize, 0)
+                pic.Print "HP: " & Format(.myHP, "0")
+                pic.CurrentX = X
+                pic.ForeColor = rgb(0, 255, 0) 'rgb(255, .turret.ammo.clipAmmoRemCnt * 255 / .turret.ammo.clipSize, 0)
+                pic.Print CStr(.turret.ammo.clipAmmoRemCnt) & "/" & CStr(.turret.ammo.ammoRemCnt)
+                pic.ForeColor = rgb(255, 255, 0)
+                pic.CurrentX = X
+                pic.Print CStr(.turret.fpm) & " RPM"
+                'pic.ForeColor = rgb(0, 255, 255)
+                'pic.CurrentX = X
+                'pic.Print Format(100 / gv.turret.accuracyErrDiv, "0.#")
+                pic.Font.Size = 10
+            End If
         End If
 
     End With
 End Sub
-
-Public Sub Fire(cam As Camera_t, Optional cnt As Long = 1)
+Public Function CalcFocus() As Single
+    Dim f As Single
+    f = (81 / gv.turret.accuracyErrDiv) ^ 0.55 * 8 - 2
+    CalcFocus = f
+End Function
+Public Sub FireTurret(cam As Camera_t, Optional cnt As Long = 1)
     Dim ndx As Long, i As Long
     Dim divVal As Single
     Dim n As Long
     Dim velOfs As Single
     With gv
-    .turret.tickToNextFire = .turret.tickToNextFire - 1
-    If .turret.tickToNextFire > 0 Then Exit Sub
-    .turret.tickToNextFire = .turret.tickToNextFire + .turret.tickReload
-    cnt = ConsumeTurretAmmo(gv.turret, cnt * gv.turret.fastFireFactor)
+    If gv.turret.burstRem <> 0 Then
+        gv.turret.burstRem = gv.turret.burstRem - 1
+    Else
+        .turret.tickToNextFire = .turret.tickToNextFire - 1
+        If .turret.tickToNextFire > 0 Then Exit Sub
+        .turret.tickToNextFire = .turret.tickToNextFire + .turret.tickReload
+        If gv.turret.burstRem = 0 And gv.turret.fastFireFactor > 1 Then
+            gv.turret.burstRem = gv.turret.fastFireFactor
+        End If
+    End If
+    
+    cnt = ConsumeTurretAmmo(gv.turret, cnt)
     If cnt < 1 Then
         gv.turret.isFiring = False
         Exit Sub
     End If
-    divVal = gv.turret.accuracyErrDiv
+    divVal = gv.turret.accuracyErrDiv ^ 1.7 / 35 + 1.3
     velOfs = gv.turret.projVelMo0 / divVal
     n = MAX_PROJ_CNT - 1
     For i = 1 To cnt
@@ -648,6 +747,7 @@ Public Sub Fire(cam As Camera_t, Optional cnt As Long = 1)
                     .color.R = 0
                     .color.G = 255
                     .color.B = 0
+                    If gv.turret.autoMode = 1 And i = 1 Then .isShowDist = True Else .isShowDist = False
                     .leftticks = PROJ_LIFETIME_SEC * 1000
                     .ptPos = cam.pos
                     .ptPosPrev = .ptPos
@@ -669,13 +769,14 @@ Public Sub ResetTurretAmmo(turret As Turret_t)
     With turret.ammo
         .cooldownTickRem = 0
         .reloadTickRem = 0
-        .ammoRemCnt = 600 - Form1.cmbDifficulty.ListIndex * 60
+        .ammoRemCnt = 640 - Form1.cmbDifficulty.ListIndex * 60
         If Form1.chkJoy.Value <> 0 Then
             .ammoRemCnt = .clipSize * 30
         End If
         .clipAmmoRemCnt = .clipSize
         .reloadTickCnt = 1350
     End With
+    gv.bulletTimeTick = 5 * 1000
 End Sub
 
 Public Sub ReloadTurret(turret As Turret_t)
@@ -790,9 +891,9 @@ Public Sub ProcTargets()
                 .ptPos.Y = .ptPos.Y + .vecV.Y / 1000
                 .ptPos.z = .ptPos.z + .vecV.z / 1000
                 .distToHit = M3D_CalcDotDotDistance(.ptPos, gv.turret.cam.pos)
-                If .distToHit < 8.5 Then
+                If .distToHit < 7.1 Then
                     gv.hitCnt = gv.hitCnt + 1
-                    gv.isNewHit = True
+                    gv.newHitTick = 10
                     If Form1.chkJoy.Value = 0 Then
                         gv.myHP = gv.myHP - 30 - Form1.cmbDifficulty.ListIndex * 6
                         If gv.myHP < 0 Then
@@ -857,8 +958,8 @@ Public Sub ProcTargets()
         End With
 NextLoop:
     Next i
-    n = Rnd * 10000
-    If n < 6 + 3 * Form1.cmbDifficulty.ListIndex Then
+    n = Rnd * 100000
+    If n < 115 + 25 * Form1.cmbDifficulty.ListIndex Then
         If gv.state = STATE_PLAYING Then
             SpawnTarget
         End If
@@ -868,24 +969,27 @@ End Sub
 Public Sub GameStep()
     Dim i As Long, projCnt As Long
     Dim decay As Single
+
     If gv.myHP < 100 Then
         gv.myHP = gv.myHP + 1 / 1024
         
     End If
-    If gv.gameRemainTick <> 0 Then
+    If gv.gameRemainTick <> 0 And gv.state = STATE_PLAYING Then
         gv.gameRemainTick = gv.gameRemainTick - 1
         If gv.gameRemainTick = 0 Then
         End If
     End If
-    If gv.gameRemainTick = 0 Then
-        PlaySound vbNullString, 0, 0
-        gv.turret.isFiring = False
+    If gv.gameRemainTick = 0 Or gv.state = STATE_SCORE Or gv.state = STATE_INIT Then
+        If gv.turret.isFiring = True Then
+            PlaySound vbNullString, 0, 0
+            gv.turret.isFiring = False
+        End If
         Exit Sub
     End If
     ProcTargets
     ReloadTurret gv.turret
     If gv.isFiring And gv.turret.ammo.reloadTickRem = 0 And gv.turret.ammo.clipAmmoRemCnt <> 0 Then
-        Fire gv.turret.cam, 1
+        FireTurret gv.turret.cam, 1
         If gv.turret.isFiring = True Then
             If gv.turret.isPlaying = False Then
                 PlaySound gv.turret.sFireFile, 0, SND_ASYNC Or SND_FILENAME Or SND_LOOP
@@ -934,34 +1038,14 @@ NextLoop:
     Next i
     gv.projCnt = projCnt
 End Sub
-
-Public Sub ProcKeyCmd()
-    Dim keyCode As Long
-    If gv.keyCmd.isdown = False Then Exit Sub
-    keyCode = gv.keyCmd.keyCode
-    With Form1
-    On Error GoTo ExitSub
-    Select Case keyCode
-    Case Asc("D")
-        .hsX.Value = .hsX.Value + 1
-    Case Asc("A")
-        .hsX.Value = .hsX.Value - 1
-    Case Asc("S")
-        .hsFPM.Value = .hsFPM.Value - 1
-    Case Asc("W")
-        .hsFPM.Value = .hsFPM.Value + 1
-    Case Asc("R")
-        With gv.turret
-        If .ammo.reloadTickRem = 0 And .ammo.clipAmmoRemCnt < .ammo.clipSize And .ammo.ammoRemCnt <> 0 Then
-            .ammo.ammoRemCnt = .ammo.ammoRemCnt + .ammo.clipAmmoRemCnt
-            .ammo.clipAmmoRemCnt = 0
-            .ammo.reloadTickRem = .ammo.reloadTickCnt
-        End If
-        End With
-    End Select
-    keyCode = keyCode
-    End With
-ExitSub:
+Public Sub ShowAutoMode()
+    If gv.turret.autoMode = 0 Then
+        Form1.lblAutoMode.Caption = "自动"
+        Form1.lblAutoMode.BackColor = rgb(0, 120, 0)
+    Else
+        Form1.lblAutoMode.Caption = "手动"
+        Form1.lblAutoMode.BackColor = rgb(110, 120, 0)
+    End If
 End Sub
 
 Public Function GetFpmSoundFile(fpm As Single) As String
@@ -1031,11 +1115,12 @@ Public Sub Main()
     Dim sFile As String
     Randomize Timer
     gv.state = STATE_INIT
+    gv.isShowFloatingStat = True
     gv.keyCmd.keySensitivity = 0.01
     gv.cam.fovDgr = 100#
     gv.cam.pos.X = 0
-    gv.cam.pos.Y = 0.5
-    gv.cam.pos.z = 1.5
+    gv.cam.pos.Y = 0.1
+    gv.cam.pos.z = 0.5
     gv.cam.vecN.X = 0
     gv.cam.vecN.Y = 0.5
     gv.cam.vecN.z = 10
@@ -1050,8 +1135,8 @@ Public Sub Main()
     gv.dfcltLv(1) = 900
     gv.dfcltLv(2) = 636
     gv.dfcltLv(3) = 449
-    gv.dfcltLv(4) = 318
-    gv.dfcltLv(5) = 225
+    gv.dfcltLv(4) = 336
+    gv.dfcltLv(5) = 252
     n = MAX_PROJ_CNT - 1
     For i = 0 To n
         gv.projs(i).leftticks = 0
@@ -1062,6 +1147,7 @@ Public Sub Main()
     gv.turret.cam = gv.cam
     gv.turret.tickToNextFire = 1
     gv.turret.tickReload = 1000# * 60 / CSng(gv.turret.fpm)
+    gv.turret.autoMode = 0
     
     SetupCamera gv.cam
     SetupCamera gv.turret.cam
@@ -1070,8 +1156,8 @@ Public Sub Main()
     ' must be put at the last, it will cause Form1 to load!
     gv.cam.WvsH = CSng(Form1.pic.ScaleWidth) / CSng(Form1.pic.ScaleHeight)
     LoadPlayers
-    gv.turret.ammo.clipSize = 300
+    gv.turret.ammo.clipSize = 400
     
-    Form1.Show 1
+    Form1.Show
 End Sub
 
