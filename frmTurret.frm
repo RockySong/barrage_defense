@@ -10,7 +10,7 @@ Begin VB.Form Form1
    ScaleHeight     =   684
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   971
-   StartUpPosition =   3  '窗口缺省
+   StartUpPosition =   2  '屏幕中心
    Begin VB.CommandButton cmdNew 
       BackColor       =   &H00404040&
       Caption         =   "结束本局"
@@ -26,14 +26,14 @@ Begin VB.Form Form1
       Height          =   598
       Left            =   12000
       MaskColor       =   &H00404040&
-      TabIndex        =   16
+      TabIndex        =   14
       Top             =   9600
       Visible         =   0   'False
       Width           =   1417
    End
    Begin VB.CheckBox chkJoy 
       BackColor       =   &H00404040&
-      Caption         =   "练习(不计分)"
+      Caption         =   "神助(不计分)"
       BeginProperty Font 
          Name            =   "黑体"
          Size            =   15
@@ -46,7 +46,8 @@ Begin VB.Form Form1
       ForeColor       =   &H00E0E0E0&
       Height          =   375
       Left            =   5520
-      TabIndex        =   9
+      TabIndex        =   7
+      ToolTipText     =   "10倍子弹时间, 充足弹药, 受到1/10伤害"
       Top             =   9600
       Width           =   2175
    End
@@ -65,26 +66,9 @@ Begin VB.Form Form1
       Height          =   598
       Left            =   10200
       MaskColor       =   &H00404040&
-      TabIndex        =   7
+      TabIndex        =   5
       Top             =   9600
       Width           =   1417
-   End
-   Begin VB.ComboBox cmbDifficulty 
-      BeginProperty Font 
-         Name            =   "黑体"
-         Size            =   12
-         Charset         =   134
-         Weight          =   400
-         Underline       =   0   'False
-         Italic          =   0   'False
-         Strikethrough   =   0   'False
-      EndProperty
-      Height          =   360
-      Left            =   936
-      TabIndex        =   5
-      Text            =   "Combo1"
-      Top             =   9594
-      Width           =   1650
    End
    Begin VB.PictureBox picHUD 
       Appearance      =   0  'Flat
@@ -96,12 +80,49 @@ Begin VB.Form Form1
       ScaleHeight     =   40
       ScaleMode       =   3  'Pixel
       ScaleWidth      =   984
-      TabIndex        =   23
+      TabIndex        =   21
       Top             =   117
       Width           =   14755
+      Begin VB.ComboBox cmbDifficulty 
+         BeginProperty Font 
+            Name            =   "黑体"
+            Size            =   12
+            Charset         =   134
+            Weight          =   400
+            Underline       =   0   'False
+            Italic          =   0   'False
+            Strikethrough   =   0   'False
+         EndProperty
+         Height          =   360
+         Left            =   12570
+         TabIndex        =   23
+         Text            =   "Combo1"
+         Top             =   120
+         Width           =   1650
+      End
+      Begin VB.Label Label4 
+         BackColor       =   &H00404040&
+         Caption         =   "难度"
+         BeginProperty Font 
+            Name            =   "黑体"
+            Size            =   14.25
+            Charset         =   134
+            Weight          =   400
+            Underline       =   0   'False
+            Italic          =   0   'False
+            Strikethrough   =   0   'False
+         EndProperty
+         ForeColor       =   &H00E0E0E0&
+         Height          =   435
+         Left            =   11760
+         TabIndex        =   24
+         Top             =   120
+         Width           =   600
+      End
       Begin VB.Label lblAutoMode 
+         Alignment       =   2  'Center
          BackColor       =   &H0000C000&
-         Caption         =   "全自动"
+         Caption         =   "连射"
          BeginProperty Font 
             Name            =   "黑体"
             Size            =   14.25
@@ -114,9 +135,9 @@ Begin VB.Form Form1
          ForeColor       =   &H00FFFFFF&
          Height          =   360
          Left            =   10800
-         TabIndex        =   24
+         TabIndex        =   22
          Top             =   120
-         Width           =   945
+         Width           =   705
       End
       Begin VB.Label Label8 
          Appearance      =   0  'Flat
@@ -134,7 +155,7 @@ Begin VB.Form Form1
          ForeColor       =   &H00FFC0C0&
          Height          =   285
          Left            =   9240
-         TabIndex        =   22
+         TabIndex        =   20
          Top             =   30
          Width           =   1305
       End
@@ -153,7 +174,7 @@ Begin VB.Form Form1
          ForeColor       =   &H00FFFF80&
          Height          =   360
          Left            =   9240
-         TabIndex        =   21
+         TabIndex        =   19
          Top             =   300
          Width           =   1185
       End
@@ -172,7 +193,7 @@ Begin VB.Form Form1
          ForeColor       =   &H00C0C0C0&
          Height          =   330
          Left            =   7320
-         TabIndex        =   20
+         TabIndex        =   18
          Top             =   30
          Width           =   1335
       End
@@ -191,7 +212,7 @@ Begin VB.Form Form1
          ForeColor       =   &H0000FFFF&
          Height          =   405
          Left            =   7320
-         TabIndex        =   19
+         TabIndex        =   17
          Top             =   300
          Width           =   1665
       End
@@ -210,7 +231,7 @@ Begin VB.Form Form1
          ForeColor       =   &H00FF80FF&
          Height          =   360
          Left            =   4920
-         TabIndex        =   17
+         TabIndex        =   15
          Top             =   60
          Width           =   1065
       End
@@ -229,7 +250,7 @@ Begin VB.Form Form1
          ForeColor       =   &H0000FF00&
          Height          =   360
          Left            =   3120
-         TabIndex        =   15
+         TabIndex        =   13
          Top             =   30
          Width           =   1995
       End
@@ -248,7 +269,7 @@ Begin VB.Form Form1
          ForeColor       =   &H00E0E0E0&
          Height          =   360
          Left            =   2400
-         TabIndex        =   14
+         TabIndex        =   12
          Top             =   60
          Width           =   705
       End
@@ -269,7 +290,7 @@ Begin VB.Form Form1
          ForeColor       =   &H00FFFF00&
          Height          =   360
          Left            =   120
-         TabIndex        =   8
+         TabIndex        =   6
          Top             =   120
          Width           =   1905
       End
@@ -293,7 +314,7 @@ Begin VB.Form Form1
          LargeChange     =   4
          Left            =   8115
          Max             =   10
-         TabIndex        =   11
+         TabIndex        =   9
          Top             =   6090
          Value           =   5
          Visible         =   0   'False
@@ -304,7 +325,7 @@ Begin VB.Form Form1
          Left            =   8115
          Max             =   25
          Min             =   1
-         TabIndex        =   10
+         TabIndex        =   8
          Top             =   5760
          Value           =   20
          Visible         =   0   'False
@@ -351,7 +372,7 @@ Begin VB.Form Form1
          ForeColor       =   &H00FFC0C0&
          Height          =   285
          Left            =   6600
-         TabIndex        =   13
+         TabIndex        =   11
          Top             =   5760
          Visible         =   0   'False
          Width           =   1305
@@ -371,7 +392,7 @@ Begin VB.Form Form1
          ForeColor       =   &H00C0C0C0&
          Height          =   240
          Left            =   6615
-         TabIndex        =   12
+         TabIndex        =   10
          Top             =   6045
          Visible         =   0   'False
          Width           =   1065
@@ -412,10 +433,10 @@ Begin VB.Form Form1
       EndProperty
       ForeColor       =   &H00FFFFFF&
       Height          =   360
-      Left            =   13680
-      TabIndex        =   18
+      Left            =   13440
+      TabIndex        =   16
       Top             =   9720
-      Width           =   600
+      Width           =   840
    End
    Begin VB.Label Label6 
       Appearance      =   0  'Flat
@@ -434,28 +455,9 @@ Begin VB.Form Form1
       ForeColor       =   &H0000FF00&
       Height          =   495
       Left            =   3960
-      TabIndex        =   6
-      Top             =   9600
-      Width           =   945
-   End
-   Begin VB.Label Label4 
-      BackColor       =   &H00404040&
-      Caption         =   "难度"
-      BeginProperty Font 
-         Name            =   "黑体"
-         Size            =   14.25
-         Charset         =   134
-         Weight          =   400
-         Underline       =   0   'False
-         Italic          =   0   'False
-         Strikethrough   =   0   'False
-      EndProperty
-      ForeColor       =   &H00E0E0E0&
-      Height          =   435
-      Left            =   120
       TabIndex        =   4
       Top             =   9600
-      Width           =   600
+      Width           =   945
    End
    Begin VB.Label lblProj 
       Caption         =   "Label1"
@@ -727,6 +729,7 @@ End Sub
 Private Sub tmrDraw_Timer()
     Dim i As Long
     Dim ts As Long, dt As Long
+    Static cnt As Long
     ts = GetTickCount()
     dt = ts - gv.ts0
     If dt < 2 Then Exit Sub
@@ -740,7 +743,7 @@ Private Sub tmrDraw_Timer()
     End If
     ProcKeyCmd
     If gv.isButtletTimeOn = True Then
-        dt = dt / 4 + 1
+        dt = dt / 3 + 1
     End If
     For i = 1 To dt
         GameStep
@@ -749,27 +752,34 @@ Private Sub tmrDraw_Timer()
     If gv.newHitTick <> 0 Then
         gv.newHitTick = gv.newHitTick - 1
     End If
-    pic.BackColor = rgb(gv.newHitTick * 25, 0, 0)
-    pic.Cls
-    picHUD.Cls
+    pic.BackColor = rgb(gv.newHitTick * 16, 0, 0)
+    
+    If cnt Mod 3 = 0 Then
+        'pic.Cls
+        picHUD.Cls
+    End If
+    cnt = cnt + 1
     Render
 
     If gv.state = STATE_PLAYING Or gv.state = STATE_INIT Then
         pic.Font.Name = "黑体"
+        pic.Font.Bold = False
         pic.CurrentX = pic.ScaleWidth / 2 - 90
         pic.CurrentY = 7
-        pic.Font.Size = 16
+        pic.Font.Size = 18
         pic.Print "救援到达 "
         pic.CurrentX = pic.ScaleWidth / 2 + 20
         pic.CurrentY = 4
-        pic.Font.Size = 22
+        pic.Font.Size = 24
         pic.ForeColor = rgb(255, 255, 0)
         pic.Print Format(gv.gameRemainTick / 1000, "0.0")
         If gv.isButtletTimeOn = True Then
             pic.CurrentX = 10
             pic.CurrentY = 10
+            pic.Font.Size = 18
             pic.ForeColor = rgb(255, 155, 0)
             pic.Print Format(gv.bulletTimeTick / 1000, "子弹时间 0.0")
         End If
     End If
+    
 End Sub

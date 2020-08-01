@@ -12,7 +12,7 @@ Begin VB.Form frmPlayer
    MinButton       =   0   'False
    ScaleHeight     =   5220
    ScaleWidth      =   9840
-   StartUpPosition =   3  '窗口缺省
+   StartUpPosition =   2  '屏幕中心
    Begin VB.TextBox txtName 
       Appearance      =   0  'Flat
       BackColor       =   &H00000000&
@@ -136,7 +136,7 @@ Begin VB.Form frmPlayer
    Begin VB.Label lblChangeName 
       Appearance      =   0  'Flat
       BackColor       =   &H00404040&
-      Caption         =   "退出"
+      Caption         =   "确定"
       BeginProperty Font 
          Name            =   "黑体"
          Size            =   14.25
@@ -251,7 +251,7 @@ Private Sub ShowPlayer(ndx As Long, lbl As Label)
     strSt = strSt & Chr$(13) & Chr$(10) & "战斗总数 : " & CStr(.playCnt)
     strSt = strSt & Chr$(13) & Chr$(10) & "胜利总数 : " & CStr(.winCnt)
     If .playCnt <> 0 Then
-        strSt = strSt & Chr$(13) & Chr$(10) & "胜利比率 : " & Format("0.#%", CDbl(.winCnt) / .playCnt)
+        strSt = strSt & Chr$(13) & Chr$(10) & "胜利比率 : " & Format(CDbl(.winCnt) / .playCnt, "0.#%")
     Else
         strSt = strSt & Chr$(13) & Chr$(10) & "胜利比率 : -"
     End If

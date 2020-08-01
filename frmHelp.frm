@@ -13,6 +13,7 @@ Begin VB.Form Form2
    ScaleHeight     =   547
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   736
+   StartUpPosition =   2  'ÆÁÄ»ÖÐÐÄ
    Begin VB.PictureBox pic2 
       Appearance      =   0  'Flat
       BackColor       =   &H80000005&
