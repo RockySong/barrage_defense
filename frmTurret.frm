@@ -38,7 +38,7 @@ Begin VB.Form Form1
       Min             =   1
       TabIndex        =   22
       Top             =   9600
-      Value           =   20
+      Value           =   11
       Visible         =   0   'False
       Width           =   2587
    End
@@ -607,6 +607,7 @@ Private Sub pic_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As
     If Button = 2 Then
         gv.turret.fastFireFactor = 5
         gv.turret.burstRem = 5
+        gv.turret.tickToNextFire = gv.turret.tickReload
     Else
         gv.turret.fastFireFactor = 1#
     End If
@@ -647,7 +648,9 @@ End Sub
 
 Private Sub ProcKeyCmd()
     Dim keyCode As Long
-    If gv.keyCmd.isdown = False Then Exit Sub
+    Dim hasBltTimeKeyDown As Boolean
+    hasBltTimeKeyDown = False
+    If gv.keyCmd.isdown = False Then GoTo PostProc
     keyCode = gv.keyCmd.keyCode
     With Form1
     On Error GoTo ExitSub
@@ -692,17 +695,32 @@ Private Sub ProcKeyCmd()
             End If
         End If
     Case Asc(" ")
-        If gv.keyCmd.isNewDown = True Then
-            If gv.bulletTimeTick > 0 Then
-                gv.isButtletTimeOn = Not gv.isButtletTimeOn
-                ChangeFPM
+        If Form1.chkJoy.Value = 0 Then
+            hasBltTimeKeyDown = True
+        Else
+            If gv.keyCmd.isNewDown = True Then
+                If gv.bulletTimeTick > 0 Then
+                    gv.isButtletTimeOn = Not gv.isButtletTimeOn
+                    ChangeFPM
+                End If
             End If
         End If
     End Select
-    keyCode = keyCode
+PostProc:
+    If Form1.chkJoy.Value = 0 Then
+        If hasBltTimeKeyDown = False And gv.isButtletTimeOn = True Then
+            gv.isButtletTimeOn = False
+            ChangeFPM
+        End If
+        If hasBltTimeKeyDown = True And gv.isButtletTimeOn = False And gv.bulletTimeTick > 0 Then
+            gv.isButtletTimeOn = True
+            ChangeFPM
+        End If
+        keyCode = keyCode
+    End If
     End With
-    gv.keyCmd.isNewDown = False
 ExitSub:
+    gv.keyCmd.isNewDown = False
 End Sub
 
 Private Sub Form_Load()
@@ -715,7 +733,7 @@ Private Sub Form_Load()
     Form1.tmrDraw.Enabled = True
     Form1.hsFPM.Min = 0
     Form1.hsFPM.Max = gv.fpmSoundCnt - 1
-    Form1.hsFPM.Value = Form1.hsFPM.Max \ 2 + 2
+    Form1.hsFPM.Value = Form1.hsFPM.Max * 3 / 5
     hsFPM_Change
     cmbDifficulty.AddItem "D-»Î√≈"
     cmbDifficulty.AddItem "C-∆’Õ®"
@@ -785,7 +803,7 @@ Private Sub tmrDraw_Timer()
     dt = ts - gv.ts0
     If dt < 2 Then Exit Sub
     gv.ts0 = ts
-    If dt > 100 Then dt = 100
+    If dt > 60 Then dt = 60
     If gv.isButtletTimeOn = True Then
         gv.bulletTimeTick = gv.bulletTimeTick - dt
         If gv.bulletTimeTick <= 0 Then

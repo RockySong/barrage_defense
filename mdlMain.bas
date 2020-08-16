@@ -47,7 +47,7 @@ Public bTracking As Boolean
 '----------------------------------constants-----------------------------
 Public Const DEGREE_PER_ARC As Single = 57.29578
 Public Const MAX_PROJ_CNT As Long = 600
-Public Const MAX_TGT_CNT As Long = 14
+Public Const MAX_TGT_CNT As Long = 16
 Public Const DRAW_PER_SEC As Long = 30
 Public Const PROJ_LIFETIME_SEC As Single = 4
 Public Const PROJ_TAIL_CNT As Long = 8
@@ -609,7 +609,7 @@ Public Sub Render()
                                     If gv.isShowTgtDist = True Then
                                         pic.CurrentX = rasterX + projR + 2
                                         pic.CurrentY = rasterY - 5
-                                        If .distToHit < 255 Then
+                                        If .distToHit < 255 * gv.zoomFactor Then
                                             txtCol = CLng(.distToHit)
                                             pic.ForeColor = rgb(255, txtCol, 0)
                                             pic.Print Format(.distToHit, "0")
@@ -669,11 +669,11 @@ Public Sub Render()
                                 pic.PSet (rasterX, rasterY), rgb(bri, bri, 0)
                             End If
                             bri = 255 * (projR - intProjR)
-                            If isArc = True And bri > 32 Then
+                            If bri > 48 Then
                                 intProjR = intProjR + 1
                                 pic.Line (rasterX - intProjR, rasterY - intProjR)-(rasterX + intProjR, rasterY + intProjR), rgb(bri, bri, 0), B
                             End If
-                            If isArc = True Then
+                            If isArc = True And projR > 0.15 Then
                                 ' >>> ----------------绘制弹道曲线-------------------
                                 pic.DrawWidth = 1
                                 If .histCnt < PROJ_TAIL_CNT Then
@@ -709,7 +709,7 @@ Public Sub Render()
                             End If
                         End If
                     End If
-                    If isArc = True Then
+                    If isArc = True And projR > 0.15 Then
                         .histNdx = .histNdx + 1
                         If .histNdx >= PROJ_TAIL_CNT Then .histNdx = 0
                         If .histCnt < PROJ_TAIL_CNT Then .histCnt = .histCnt + 1
@@ -915,6 +915,9 @@ Public Sub FireTurret(cam As Camera_t, Optional cnt As Long = 1)
     With gv
     If gv.turret.burstRem <> 0 Then
         gv.turret.burstRem = gv.turret.burstRem - 1
+        If .turret.tickToNextFire > 1 Then
+            .turret.tickToNextFire = .turret.tickToNextFire - 1
+        End If
     Else
         .turret.tickToNextFire = .turret.tickToNextFire - 1
         If .turret.tickToNextFire > 0 Then Exit Sub
@@ -964,12 +967,12 @@ Public Sub ResetTurretAmmo(turret As Turret_t)
     With turret.ammo
         .cooldownTickRem = 0
         .reloadTickRem = 0
-        .ammoRemCnt = 2100 - Form1.cmbDifficulty.ListIndex * 100
+        .ammoRemCnt = 3000 - Form1.cmbDifficulty.ListIndex * 250
+        .clipAmmoRemCnt = .clipSize
+        .reloadTickCnt = 1150
         If Form1.chkJoy.Value <> 0 Then
             .ammoRemCnt = .clipSize * 10
         End If
-        .clipAmmoRemCnt = .clipSize
-        .reloadTickCnt = 1150
     End With
     gv.bulletTimeTick = CLng(10) * 1000 * (1 + Form1.chkJoy * 50)
 End Sub
@@ -1032,9 +1035,9 @@ Public Sub SpawnTarget()
     Dim ptPos As Point3D_t
     Dim i As Long, n As Long
     
-    ptPos.z = 175 + Rnd * 1000
-    ptPos.X = ptPos.z * Rnd - ptPos.z / 2
-    ptPos.Y = ptPos.z * Rnd - ptPos.z / 2
+    ptPos.z = 475 + Rnd * 600
+    ptPos.X = (ptPos.z * Rnd - ptPos.z / 2) / 3
+    ptPos.Y = (ptPos.z * Rnd - ptPos.z * 3 / 4) / 2 - 150
     
     n = MAX_TGT_CNT - 1
     
@@ -1045,7 +1048,7 @@ Public Sub SpawnTarget()
             .leftticks = .maxTicks / 1.3
             .ptPos = ptPos
             .vecV.X = Rnd * 1
-            .vecV.Y = Rnd * 1
+            .vecV.Y = 150 + Rnd * 50
             .vecV.z = Rnd * 1
             .vecA.X = 0: .vecA.Y = 0: .vecA.z = 0
             .hp = 100 + Rnd * 400 + Form1.cmbDifficulty.ListIndex * 75
@@ -1135,12 +1138,12 @@ Public Sub ProcTargets()
                 xyRndFac = 1
                 zRndFac = rndFac
                 If distToHit < 250 Then
-                    xyRndFac = (350 / (100 + distToHit) * rndFac) ^ 0.75
+                    xyRndFac = (700 / (100 + distToHit) * rndFac) ^ 0.75
                     'zRndFac = 350 / (100 + distToHit) / rndFac
                 End If
-                .vecA.z = .vecA.z * 0.8 + (Rnd * 2 - 1) * rndFac
-                .vecA.X = .vecA.X * 0.8 + (Rnd * 4 - 2) * rndFac
-                .vecA.Y = .vecA.Y * 0.8 + (Rnd * 4 - 2) * rndFac
+                .vecA.z = .vecA.z * 0.72 + (Rnd * 2 - 1) * rndFac
+                .vecA.X = .vecA.X * 0.75 + (Rnd * 4 - 2) * rndFac
+                .vecA.Y = .vecA.Y * 0.75 + (Rnd * 4 - 2) * rndFac
                 
                 .vecV.X = .vecV.X + .vecA.X
                 .vecV.Y = .vecV.Y + .vecA.Y
@@ -1154,7 +1157,9 @@ Public Sub ProcTargets()
                 .ptPos.X = .ptPos.X + vecErr.X * 0.5 * xyRndFac
                 .ptPos.Y = .ptPos.Y + vecErr.Y * 0.5 * xyRndFac
                 .ptPos.z = .ptPos.z + vecErr.z * 0.5 * rndFac
-                .vecA.z = .vecA.z + vecErr.z * rndFac * 0.1
+                If .ptPos.z > 20 Then
+                    .vecA.z = .vecA.z + vecErr.z * rndFac * 0.05
+                End If
             End If
             ' 检查是否被射中
             For j = 0 To m
@@ -1187,7 +1192,7 @@ Public Sub ProcTargets()
 NextLoop:
     Next i
     n = Rnd * 100000
-    If n < 115 + 22 * Form1.cmbDifficulty.ListIndex Then
+    If n < 105 + 25 * Form1.cmbDifficulty.ListIndex Then
         If gv.state = STATE_PLAYING Then
             SpawnTarget
         End If
@@ -1358,26 +1363,25 @@ Public Sub Main()
         
     Next i
 
-    gv.dfcltLv(0) = 1575
-    gv.dfcltLv(1) = 1050
-    gv.dfcltLv(2) = 875
-    gv.dfcltLv(3) = 729
-    gv.dfcltLv(4) = 607
-    gv.dfcltLv(5) = 506
+    gv.dfcltLv(0) = 1680
+    gv.dfcltLv(1) = 1200
+    gv.dfcltLv(2) = 1111
+    gv.dfcltLv(3) = 1028
+    gv.dfcltLv(4) = 952
+    gv.dfcltLv(5) = 882
     n = MAX_PROJ_CNT - 1
     For i = 0 To n
         g_projs(i).leftticks = 0
     Next i
     
     gv.turret.accuracyErrDiv = 3
-    gv.turret.fpm = 1500
     gv.turret.cam = gv.cam
     gv.turret.cam.pos.X = 2
     gv.turret.cam.pos.Y = -1
     gv.turret.cam.pos.z = -1
     
     gv.turret.tickToNextFire = 1
-    gv.turret.tickReload = 1000# * 60 / CSng(gv.turret.fpm)
+    'gv.turret.tickReload = 1000# * 60 / CSng(gv.turret.fpm)
     gv.turret.autoMode = 0
     
     SetupCamera gv.cam
