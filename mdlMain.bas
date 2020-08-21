@@ -177,6 +177,7 @@ Public Type Global_t
     state As Long
     tickCnt As Long
     gameRemainTick As Long
+    gameTotalTick As Long
     dfcltLv(0 To 6) As Long
     keyCmd As KeyCmd_t
     isFiring As Boolean
@@ -475,6 +476,7 @@ Public Sub Render()
             score = (gv.killedCnt + gv.killedCnt * gv.killedCnt / (gv.killedCnt + gv.escapeCnt + 0.0001) + gv.scoreBonus) _
                 * (2 ^ Form1.cmbDifficulty.ListIndex)
             score = score * (1 - Form1.chkJoy.Value)
+            score = score * CSng(gv.gameTotalTick - gv.gameRemainTick) / gv.gameTotalTick
             If Form1.chkJoy.Value = 0 Then
                 With gv.players(gv.playerNdx)
                     .playCnt = .playCnt + 1

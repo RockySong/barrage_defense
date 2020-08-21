@@ -551,6 +551,7 @@ Private Sub cmdStart_Click()
     ChangeFPM
     cmdStart.Visible = False
     gv.gameRemainTick = (CLng(100) + Form1.cmbDifficulty.ListIndex * 10) * 1000 + 200
+    gv.gameTotalTick = gv.gameRemainTick
     Form1.cmdNew.Visible = True
     Form1.cmdUsers.Visible = False
     Form1.cmbDifficulty.Enabled = False
