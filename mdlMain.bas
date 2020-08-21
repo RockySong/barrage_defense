@@ -177,7 +177,7 @@ Public Type Global_t
     state As Long
     tickCnt As Long
     gameRemainTick As Long
-    dfcltLv(0 To 5) As Long
+    dfcltLv(0 To 6) As Long
     keyCmd As KeyCmd_t
     isFiring As Boolean
     cam As Camera_t
@@ -987,7 +987,7 @@ Public Sub ChangeFPM()
         gv.turret.sFireFile = GetFpmSoundFile(gv.turret.fpm / 3.084)
     End If
     
-    If gv.turret.isPlaying = True Then
+    If gv.turret.isFiring = True Then
         PlaySound vbNullString, 0, 0
         PlaySound gv.turret.sFireFile, 0, SND_ASYNC Or SND_FILENAME Or SND_LOOP
     End If
@@ -1100,9 +1100,15 @@ Public Sub ProcTargets()
     Dim damage As Single
     Dim distToHit As Single
     Dim xyRndFac As Single, zRndFac As Single
+    Dim isGod As Boolean
     decay = 1 - 7 / DRAW_PER_SEC
     n = MAX_TGT_CNT - 1
     rndFac = (1 + Form1.cmbDifficulty.ListIndex / 5)
+    isGod = False
+    If Form1.cmbDifficulty.ListIndex = Form1.cmbDifficulty.ListCount - 1 Then
+        rndFac = rndFac * 1.33
+        isGod = True
+    End If
     For i = 0 To n
         With gv.tgts(i)
         If .leftticks <> 0 Then
@@ -1369,6 +1375,7 @@ Public Sub Main()
     gv.dfcltLv(3) = 1028
     gv.dfcltLv(4) = 952
     gv.dfcltLv(5) = 882
+    gv.dfcltLv(6) = 441
     n = MAX_PROJ_CNT - 1
     For i = 0 To n
         g_projs(i).leftticks = 0

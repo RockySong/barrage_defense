@@ -741,6 +741,7 @@ Private Sub Form_Load()
     cmbDifficulty.AddItem "A-精英"
     cmbDifficulty.AddItem "S-王牌"
     cmbDifficulty.AddItem "SS-传奇"
+    cmbDifficulty.AddItem "SSS-人工智能"
     cmbDifficulty.ListIndex = 1
     cmbDifficulty_Click
     pic.Font.Size = 16
