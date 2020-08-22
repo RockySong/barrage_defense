@@ -11,6 +11,27 @@ Begin VB.Form Form1
    ScaleMode       =   3  'Pixel
    ScaleWidth      =   971
    StartUpPosition =   2  '屏幕中心
+   Begin VB.CheckBox chkAutoReload 
+      BackColor       =   &H00404040&
+      Caption         =   "自动重装载"
+      BeginProperty Font 
+         Name            =   "黑体"
+         Size            =   15
+         Charset         =   134
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00E0E0E0&
+      Height          =   375
+      Left            =   2040
+      TabIndex        =   27
+      ToolTipText     =   "若附近无敌方单位就伺机重装炮弹"
+      Top             =   9600
+      Value           =   1  'Checked
+      Width           =   1935
+   End
    Begin VB.CheckBox chkArc 
       BackColor       =   &H00404040&
       Caption         =   "弹道品质"
@@ -25,33 +46,11 @@ Begin VB.Form Form1
       EndProperty
       ForeColor       =   &H00E0E0E0&
       Height          =   375
-      Left            =   8400
-      TabIndex        =   25
+      Left            =   240
+      TabIndex        =   26
       ToolTipText     =   "10倍子弹时间, 充足弹药, 受到1/10伤害"
-      Top             =   9720
-      Width           =   1575
-   End
-   Begin VB.HScrollBar hsX 
-      Height          =   247
-      Left            =   1755
-      Max             =   25
-      Min             =   1
-      TabIndex        =   22
       Top             =   9600
-      Value           =   11
-      Visible         =   0   'False
-      Width           =   2587
-   End
-   Begin VB.HScrollBar hsFPM 
-      Height          =   247
-      LargeChange     =   4
-      Left            =   1755
-      Max             =   10
-      TabIndex        =   21
-      Top             =   9930
-      Value           =   6
-      Visible         =   0   'False
-      Width           =   2587
+      Width           =   1575
    End
    Begin VB.CommandButton cmdNew 
       BackColor       =   &H00404040&
@@ -87,7 +86,7 @@ Begin VB.Form Form1
       EndProperty
       ForeColor       =   &H00E0E0E0&
       Height          =   375
-      Left            =   4800
+      Left            =   4680
       TabIndex        =   7
       ToolTipText     =   "10倍子弹时间, 充足弹药, 受到1/10伤害"
       Top             =   9600
@@ -136,14 +135,35 @@ Begin VB.Form Form1
             Strikethrough   =   0   'False
          EndProperty
          Height          =   360
-         Left            =   12570
+         Left            =   11400
          TabIndex        =   19
          Text            =   "Combo1"
          Top             =   120
-         Width           =   1650
+         Width           =   1770
+      End
+      Begin VB.Label lblChnlg 
+         Appearance      =   0  'Flat
+         BackColor       =   &H00404040&
+         BorderStyle     =   1  'Fixed Single
+         Caption         =   "挑战"
+         BeginProperty Font 
+            Name            =   "黑体"
+            Size            =   18
+            Charset         =   134
+            Weight          =   400
+            Underline       =   0   'False
+            Italic          =   0   'False
+            Strikethrough   =   0   'False
+         EndProperty
+         ForeColor       =   &H00C0C0FF&
+         Height          =   420
+         Left            =   13320
+         TabIndex        =   21
+         Top             =   120
+         Width           =   945
       End
       Begin VB.Label Label4 
-         BackColor       =   &H00404040&
+         BackColor       =   &H00000000&
          Caption         =   "难度"
          BeginProperty Font 
             Name            =   "黑体"
@@ -156,7 +176,7 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H00E0E0E0&
          Height          =   435
-         Left            =   11760
+         Left            =   10680
          TabIndex        =   20
          Top             =   120
          Width           =   600
@@ -176,7 +196,7 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H00FFFFFF&
          Height          =   360
-         Left            =   10800
+         Left            =   9840
          TabIndex        =   18
          Top             =   120
          Width           =   705
@@ -196,7 +216,7 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H00FFC0C0&
          Height          =   285
-         Left            =   9240
+         Left            =   8280
          TabIndex        =   16
          Top             =   30
          Width           =   1305
@@ -215,7 +235,7 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H00FFFF80&
          Height          =   360
-         Left            =   9240
+         Left            =   8520
          TabIndex        =   15
          Top             =   300
          Width           =   1185
@@ -234,7 +254,7 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H00C0C0C0&
          Height          =   330
-         Left            =   7320
+         Left            =   6720
          TabIndex        =   14
          Top             =   30
          Width           =   1335
@@ -253,10 +273,10 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H0000FFFF&
          Height          =   405
-         Left            =   7320
+         Left            =   6720
          TabIndex        =   13
          Top             =   300
-         Width           =   1665
+         Width           =   1425
       End
       Begin VB.Label lblHPTitle 
          BackColor       =   &H00000000&
@@ -272,7 +292,7 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H00FF80FF&
          Height          =   360
-         Left            =   4920
+         Left            =   5070
          TabIndex        =   11
          Top             =   60
          Width           =   1065
@@ -291,14 +311,14 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H0000FF00&
          Height          =   360
-         Left            =   3120
+         Left            =   3390
          TabIndex        =   9
-         Top             =   30
-         Width           =   1995
+         Top             =   60
+         Width           =   1755
       End
       Begin VB.Label LabelAmmoTitle 
          BackColor       =   &H00000000&
-         Caption         =   "弹药"
+         Caption         =   "30mm炮弹"
          BeginProperty Font 
             Name            =   "黑体"
             Size            =   14.25
@@ -310,10 +330,10 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H00E0E0E0&
          Height          =   360
-         Left            =   2400
+         Left            =   2130
          TabIndex        =   8
-         Top             =   60
-         Width           =   705
+         Top             =   120
+         Width           =   1305
       End
       Begin VB.Label lblPlayer 
          Appearance      =   0  'Flat
@@ -351,6 +371,28 @@ Begin VB.Form Form1
       TabIndex        =   0
       Top             =   840
       Width           =   14287
+      Begin VB.HScrollBar hsFPM 
+         Height          =   247
+         LargeChange     =   4
+         Left            =   1515
+         Max             =   10
+         TabIndex        =   23
+         Top             =   330
+         Value           =   6
+         Visible         =   0   'False
+         Width           =   2587
+      End
+      Begin VB.HScrollBar hsX 
+         Height          =   247
+         Left            =   1515
+         Max             =   25
+         Min             =   1
+         TabIndex        =   22
+         Top             =   0
+         Value           =   11
+         Visible         =   0   'False
+         Width           =   2587
+      End
       Begin VB.CommandButton cmdStart 
          BackColor       =   &H00404040&
          Caption         =   "点击开始 "
@@ -364,10 +406,10 @@ Begin VB.Form Form1
             Strikethrough   =   0   'False
          EndProperty
          Height          =   598
-         Left            =   6435
+         Left            =   6360
          MaskColor       =   &H00404040&
          TabIndex        =   3
-         Top             =   1989
+         Top             =   840
          Width           =   1417
       End
       Begin VB.Timer tmrDraw 
@@ -375,6 +417,47 @@ Begin VB.Form Form1
          Interval        =   33
          Left            =   5967
          Top             =   2106
+      End
+      Begin VB.Label Label1 
+         Appearance      =   0  'Flat
+         BackColor       =   &H00000000&
+         Caption         =   "弹幕分散"
+         BeginProperty Font 
+            Name            =   "黑体"
+            Size            =   12
+            Charset         =   134
+            Weight          =   400
+            Underline       =   0   'False
+            Italic          =   0   'False
+            Strikethrough   =   0   'False
+         EndProperty
+         ForeColor       =   &H00FFC0C0&
+         Height          =   285
+         Left            =   0
+         TabIndex        =   25
+         Top             =   0
+         Visible         =   0   'False
+         Width           =   1305
+      End
+      Begin VB.Label Label9 
+         BackColor       =   &H00000000&
+         Caption         =   "开火频率"
+         BeginProperty Font 
+            Name            =   "黑体"
+            Size            =   12
+            Charset         =   134
+            Weight          =   400
+            Underline       =   0   'False
+            Italic          =   0   'False
+            Strikethrough   =   0   'False
+         EndProperty
+         ForeColor       =   &H00C0C0C0&
+         Height          =   240
+         Left            =   15
+         TabIndex        =   24
+         Top             =   285
+         Visible         =   0   'False
+         Width           =   1065
       End
       Begin VB.Label lblScore 
          Alignment       =   2  'Center
@@ -391,53 +474,12 @@ Begin VB.Form Form1
          EndProperty
          ForeColor       =   &H0080FF80&
          Height          =   1665
-         Left            =   3840
+         Left            =   3960
          TabIndex        =   2
-         Top             =   3120
+         Top             =   1680
          Visible         =   0   'False
          Width           =   6480
       End
-   End
-   Begin VB.Label Label9 
-      BackColor       =   &H00000000&
-      Caption         =   "开火频率"
-      BeginProperty Font 
-         Name            =   "黑体"
-         Size            =   12
-         Charset         =   134
-         Weight          =   400
-         Underline       =   0   'False
-         Italic          =   0   'False
-         Strikethrough   =   0   'False
-      EndProperty
-      ForeColor       =   &H00C0C0C0&
-      Height          =   240
-      Left            =   255
-      TabIndex        =   24
-      Top             =   9885
-      Visible         =   0   'False
-      Width           =   1065
-   End
-   Begin VB.Label Label1 
-      Appearance      =   0  'Flat
-      BackColor       =   &H00000000&
-      Caption         =   "弹幕分散"
-      BeginProperty Font 
-         Name            =   "黑体"
-         Size            =   12
-         Charset         =   134
-         Weight          =   400
-         Underline       =   0   'False
-         Italic          =   0   'False
-         Strikethrough   =   0   'False
-      EndProperty
-      ForeColor       =   &H00FFC0C0&
-      Height          =   285
-      Left            =   240
-      TabIndex        =   23
-      Top             =   9600
-      Visible         =   0   'False
-      Width           =   1305
    End
    Begin VB.Label lblStat 
       BackColor       =   &H00000000&
@@ -510,7 +552,7 @@ End Function
 
 
 Private Sub cmbDifficulty_Click()
-    gv.turret.projVelMo0 = gv.dfcltLv(cmbDifficulty.ListIndex)
+    CalcProjVelMo0
     
 End Sub
 
@@ -522,6 +564,7 @@ Private Sub cmdNew_Click()
 End Sub
 
 Private Sub cmdStart_Click()
+    Dim chlng As Single
     gv.state = STATE_PLAYING
     PlaySound vbNullString, 0, 0
     gv.scoreBonus = 0
@@ -541,6 +584,7 @@ Private Sub cmdStart_Click()
         gv.tgts(i).leftticks = 0
     Next i
     gv.tgtCnt = 0
+    gv.isPaused = False
     gv.projCnt = 0
     gv.killedCnt = 0
     gv.escapeCnt = 0
@@ -550,7 +594,10 @@ Private Sub cmdStart_Click()
     gv.isButtletTimeOn = False
     ChangeFPM
     cmdStart.Visible = False
-    gv.gameRemainTick = (CLng(100) + Form1.cmbDifficulty.ListIndex * 10) * 1000 + 200
+    Form1.lblChnlg.Enabled = False
+    chlng = gv.chlng.isEn(CHLNG_RESCUE_SLOW) * gv.chlng.lvs(CHLNG_RESCUE_SLOW) * 5 / 100 + 1
+    gv.gameRemainTick = (CLng(100) + Form1.cmbDifficulty.ListIndex * 10) * 1000 * chlng + 200
+    
     gv.gameTotalTick = gv.gameRemainTick
     Form1.cmdNew.Visible = True
     Form1.cmdUsers.Visible = False
@@ -583,8 +630,8 @@ Private Sub ProcFireCmd(X As Single, Y As Single)
     
     halfW = pic.ScaleWidth / 2
     halfH = pic.ScaleHeight / 2
-    xRatio = (X - halfW) / halfW * 1.25 * 1.8
-    yRatio = -(Y - halfH) / halfH * 0.83 * 1.8
+    xRatio = (X - halfW) / halfW * 1.25 * 2.8
+    yRatio = -(Y - halfH) / halfH * 0.83 * 2.8
     
     gv.turret.cam.vecN.X = xRatio
     gv.turret.cam.vecN.Y = yRatio
@@ -593,6 +640,10 @@ Private Sub ProcFireCmd(X As Single, Y As Single)
 End Sub
 
 
+Private Sub Label3_Click()
+
+End Sub
+
 Private Sub Label6_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)
     Label6.BackColor = 0
 End Sub
@@ -600,6 +651,18 @@ End Sub
 Private Sub Label6_MouseUp(Button As Integer, Shift As Integer, X As Single, Y As Single)
     Label6.BackColor = rgb(63, 63, 63)
     Form2.Show 1
+End Sub
+
+Private Sub lblChnlg_Click()
+    frmChanllege.Show 1
+End Sub
+
+Private Sub pic_DblClick()
+    If gv.state <> STATE_PLAYING Then
+        If gv.newHitTick < 20 Then  '等全屏背景快淡出后按下鼠标才能静音
+            PlaySound vbNullString, 0, 0
+        End If
+    End If
 End Sub
 
 Private Sub pic_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)
@@ -621,9 +684,7 @@ Private Sub pic_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As
             PlaySound App.Path & "\fire_single_2.wav", 0, SND_ASYNC Or SND_FILENAME
         End If
     End If
-    If gv.state <> STATE_PLAYING Then
-        PlaySound vbNullString, 0, 0
-    End If
+
     
 End Sub
 
@@ -690,11 +751,20 @@ Private Sub ProcKeyCmd()
     Case Asc("Z")
         If gv.keyCmd.isNewDown = True Then
             If gv.zoomFactor < 1.1 Then
+                gv.zoomFactor = 2
+            ElseIf gv.zoomFactor < 2.2 Then
                 gv.zoomFactor = 4
             Else
                 gv.zoomFactor = 1
             End If
         End If
+    Case Asc("C")
+        If gv.keyCmd.isNewDown = True Then
+            If Form1.chkJoy.Value <> 0 Then
+                gv.isPaused = Not gv.isPaused
+            End If
+        End If
+        
     Case Asc(" ")
         If Form1.chkJoy.Value = 0 Then
             hasBltTimeKeyDown = True
@@ -736,13 +806,13 @@ Private Sub Form_Load()
     Form1.hsFPM.Max = gv.fpmSoundCnt - 1
     Form1.hsFPM.Value = Form1.hsFPM.Max * 3 / 5
     hsFPM_Change
-    cmbDifficulty.AddItem "D-入门"
-    cmbDifficulty.AddItem "C-普通"
-    cmbDifficulty.AddItem "B-专家"
-    cmbDifficulty.AddItem "A-精英"
-    cmbDifficulty.AddItem "S-王牌"
-    cmbDifficulty.AddItem "SS-传奇"
-    cmbDifficulty.AddItem "SSS-人工智能"
+    cmbDifficulty.AddItem "入门-D"
+    cmbDifficulty.AddItem "普通-C"
+    cmbDifficulty.AddItem "资深-B"
+    cmbDifficulty.AddItem "专家-A"
+    cmbDifficulty.AddItem "精英-S"
+    cmbDifficulty.AddItem "王牌-SS"
+    cmbDifficulty.AddItem "传奇-SSS"
     cmbDifficulty.ListIndex = 1
     cmbDifficulty_Click
     pic.Font.Size = 16
@@ -806,6 +876,9 @@ Private Sub tmrDraw_Timer()
     If dt < 2 Then Exit Sub
     gv.ts0 = ts
     If dt > 60 Then dt = 60
+    If gv.isPaused = True Then
+        dt = 2
+    End If
     If gv.isButtletTimeOn = True Then
         gv.bulletTimeTick = gv.bulletTimeTick - dt
         If gv.bulletTimeTick <= 0 Then
@@ -826,7 +899,15 @@ Private Sub tmrDraw_Timer()
     If gv.newHitTick <> 0 Then
         gv.newHitTick = gv.newHitTick - 1
     End If
-    pic.BackColor = rgb(gv.newHitTick * 6, 0, 0)
+    If gv.state = STATE_PLAYING Then
+        pic.BackColor = rgb(gv.newHitTick * 6, 0, 0)
+    Else
+        If gv.myHP > 0 Then
+            pic.BackColor = rgb(0, gv.newHitTick * 6, 0)
+        Else
+            pic.BackColor = rgb(gv.newHitTick * 6, 0, 0)
+        End If
+    End If
     
     If cnt Mod 3 = 0 Then
         'pic.Cls

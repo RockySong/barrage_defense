@@ -1,4 +1,5 @@
 Attribute VB_Name = "mdlMain"
+Option Explicit
 Public Declare Function GetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" (ByVal lpApplicationName As String, ByVal lpKeyName As Any, ByVal lpDefault As String, ByVal lpReturnedString As String, ByVal nSize As Long, ByVal lpFileName As String) As Long
 Public Declare Function WritePrivateProfileString Lib "kernel32" Alias "WritePrivateProfileStringA" (ByVal lpApplicationName As String, ByVal lpKeyName As Any, ByVal lpString As Any, ByVal lpFileName As String) As Long
 Public Declare Function ShellExecute Lib "shell32.dll" Alias "ShellExecuteA" (ByVal hwnd As Long, ByVal lpOperation As String, ByVal lpFile As String, ByVal lpParameters As String, ByVal lpDirectory As String, ByVal nShowCmd As Long) As Long
@@ -134,6 +135,17 @@ Public Type Turret_t
     burstRem As Long
 End Type
 
+Public Const ENEMY_MISSLE As Long = 0
+Public Const ENEMY_CIWS_DROID As Long = 1
+
+Public Enum Enemy_e
+    kEnemy_Missile = 0
+    kEnemy_Dumb = 1
+    kEnemy_Missle4In1 = 1  '四合1子母弹
+    kEnemy_UAV_MG = 2   '机枪UAV
+    kEnemy_Count = 3
+End Enum
+
 Public Type Target_t
     maxTicks As Long
     leftticks As Long
@@ -173,6 +185,17 @@ Public Type Player_t
     scoreHigh As Single
 End Type
 
+
+Public Const CHLNG_BULLET_VEL0 As Long = 0
+Public Const CHLNG_RESCUE_SLOW As Long = 1
+Public Const CHLNG_ENEMY_MOVE As Long = 2
+Public Const CHLNG_ENEMY_DAMAGE As Long = 3
+Public Const CHLNG_COUNT As Long = 4
+Public Type Chlng_t
+    lvs(0 To 10) As Long    ' 0 = no challenge
+    isEn(0 To 10) As Long
+End Type
+
 Public Type Global_t
     state As Long
     tickCnt As Long
@@ -184,7 +207,7 @@ Public Type Global_t
     cam As Camera_t
     turret As Turret_t
     projCnt As Long
-    
+    isPaused As Boolean
     tgtCnt As Long
     isShowTgtDist As Boolean
     isShowFloatingStat As Boolean
@@ -206,7 +229,9 @@ Public Type Global_t
     bulletTimeTick As Long
     isButtletTimeOn As Boolean
     zoomFactor As Single
+    chlng As Chlng_t
 End Type
+
 '----------------------------------globals-----------------------------
 Public gv As Global_t
 Public g_projs(0 To MAX_PROJ_CNT - 1) As Projectile_t
@@ -291,6 +316,8 @@ End Sub
 Public Sub UpdatePlayer(ndx As Long)
     Dim sVal As String
     Dim sKey As String
+    Dim sFile As String
+    Dim write1 As Long
     sKey = "Player" & CStr(ndx + 1)
     sFile = App.Path & "\scores.cfg"
     With gv.players(ndx)
@@ -374,7 +401,7 @@ Public Function CalcVectorAngle(vec1 As Vector3D_t, vec2 As Vector3D_t) As Singl
     If cosVal >= 1 Then
         CalcVectorAngle = 0
     ElseIf cosVal <= -1 Then
-        CalcVectorAngle = 180 / degree_perarc
+        CalcVectorAngle = 180 / DEGREE_PER_ARC
     Else
         CalcVectorAngle = ACos(cosVal) * DEGREE_PER_ARC
     End If
@@ -417,6 +444,7 @@ End Sub
 
 Private Sub DrawHPBar(pic As PictureBox, Optional barLen As Long = 100)
     Dim X As Long, y0 As Long
+    Dim col As Long
     X = Form1.lblHPTitle.Left
     y0 = Form1.lblHPTitle.Top + Form1.lblHPTitle.Height
     pic.DrawStyle = 0
@@ -474,10 +502,11 @@ Public Sub Render()
     If gv.state = STATE_SCORE Then
         If True Then 'Form1.chkJoy.Value = 0 Then
             score = (gv.killedCnt + gv.killedCnt * gv.killedCnt / (gv.killedCnt + gv.escapeCnt + 0.0001) + gv.scoreBonus) _
-                * (2 ^ Form1.cmbDifficulty.ListIndex)
+                * (2 ^ Form1.cmbDifficulty.ListIndex) * 1.05
             score = score * (1 - Form1.chkJoy.Value)
             score = score * CSng(gv.gameTotalTick - gv.gameRemainTick) / gv.gameTotalTick
-            If Form1.chkJoy.Value = 0 Then
+            score = score * CalcChlngScoreFac
+            If Form1.chkJoy.Value = 0 And score <> 0 Then
                 With gv.players(gv.playerNdx)
                     .playCnt = .playCnt + 1
                     If gv.myHP > 0 Then
@@ -504,6 +533,7 @@ Public Sub Render()
                 Form1.lblScore.BackColor = rgb(0, 50, 0)
                 Form1.lblScore.ForeColor = rgb(150, 255, 150)
                 Form1.lblScore.Caption = "得救了！我们爱你！" & gv.players(gv.playerNdx).sName & Chr$(13) & Chr$(10)
+                gv.newHitTick = 75 * 255 \ 600 + 4
             Else
                 Form1.lblScore.BackColor = rgb(50, 0, 0)
                 Form1.lblScore.ForeColor = rgb(255, 150, 150)
@@ -525,6 +555,7 @@ Public Sub Render()
         End If
         If Form1.lblScore.Visible = False Then
             Form1.lblScore.Visible = True
+            Form1.lblChnlg.Enabled = True
             Form1.cmdNew.Visible = False
             Form1.cmdStart.Visible = True
             Form1.cmdUsers.Visible = True
@@ -547,7 +578,7 @@ Public Sub Render()
     yMax = xMax / cam.WvsH
     rasterW = Form1.pic.ScaleWidth
     rasterH = Form1.pic.ScaleHeight
-    If Form1.lblScore.Visible = True Then GoTo PostRender
+    'If Form1.lblScore.Visible = True Then GoTo PostRender
     'render hp
     If gv.state = STATE_PLAYING Then
         DrawHPBar Form1.picHUD
@@ -611,8 +642,8 @@ Public Sub Render()
                                     If gv.isShowTgtDist = True Then
                                         pic.CurrentX = rasterX + projR + 2
                                         pic.CurrentY = rasterY - 5
-                                        If .distToHit < 255 * gv.zoomFactor Then
-                                            txtCol = CLng(.distToHit)
+                                        If .distToHit < 510 * gv.zoomFactor Then
+                                            txtCol = CLng(.distToHit / 2)
                                             pic.ForeColor = rgb(255, txtCol, 0)
                                             pic.Print Format(.distToHit, "0")
                                         End If
@@ -711,7 +742,7 @@ Public Sub Render()
                             End If
                         End If
                     End If
-                    If isArc = True And projR > 0.15 Then
+                    If projR > 0.15 And gv.state = STATE_PLAYING Then
                         .histNdx = .histNdx + 1
                         If .histNdx >= PROJ_TAIL_CNT Then .histNdx = 0
                         If .histCnt < PROJ_TAIL_CNT Then .histCnt = .histCnt + 1
@@ -728,9 +759,9 @@ Public Sub Render()
             pic.DrawStyle = 0
             For i = 2 To 4
                 aimPos = gv.turret.cam.pos
-                aimPos.X = aimPos.X + .turret.cam.vecN.X * (30 + 3 ^ i)
-                aimPos.Y = aimPos.Y + .turret.cam.vecN.Y * (30 + 3 ^ i)
-                aimPos.z = aimPos.z + .turret.cam.vecN.z * (30 + 3 ^ i)
+                aimPos.X = aimPos.X + .turret.cam.vecN.X * (40 + 3 ^ i)
+                aimPos.Y = aimPos.Y + .turret.cam.vecN.Y * (40 + 3 ^ i)
+                aimPos.z = aimPos.z + .turret.cam.vecN.z * (40 + 3 ^ i)
                 dist = M3D_CalcDotPlaneDistance(aimPos, cam.plane)
                 prjPt.X = aimPos.X * focal / dist / 2 * gv.zoomFactor
                 prjPt.Y = aimPos.Y * focal / dist / 2 * gv.zoomFactor
@@ -769,14 +800,14 @@ Public Sub Render()
                 pic.Print "HP: " & Format(.myHP, "0")
 
                 
-                If .turret.ammo.clipAmmoRemCnt * 100# / .turret.ammo.clipSize > 25 Or .ts0 Mod 400 < 250 Then
+                If .turret.ammo.clipAmmoRemCnt * 100# / .turret.ammo.clipSize > 50 Or .ts0 Mod 400 < 250 Then
                     If .turret.ammo.reloadTickRem <> 0 Then
                         pic.ForeColor = rgb(255, 255, 0) 'rgb(255, .turret.ammo.clipAmmoRemCnt * 255 / .turret.ammo.clipSize, 0)
                     Else
                         pic.ForeColor = rgb(0, 255, 0) 'rgb(255, .turret.ammo.clipAmmoRemCnt * 255 / .turret.ammo.clipSize, 0)
                     End If
                 Else
-                    pic.ForeColor = rgb(0, 8 * .turret.ammo.clipAmmoRemCnt * 100# / .turret.ammo.clipSize, 0)
+                    pic.ForeColor = rgb(0, 5 * .turret.ammo.clipAmmoRemCnt * 100# / .turret.ammo.clipSize, 0)
                 End If
                 If .turret.ammo.clipAmmoRemCnt = 0 And .turret.ammo.ammoRemCnt = 0 Then pic.ForeColor = rgb(255, 0, 0)
                 pic.CurrentX = X
@@ -798,9 +829,9 @@ Public Sub Render()
         
         If gv.zoomFactor > 1 Then
             n = MAX_TGT_CNT - 1
-            pic.Line (0, rasterH * 3 / 4)-(rasterW / 4, rasterH - 2), rgb(44, 44, 44), BF
+            pic.Line (0, rasterH * 3 / 4)-(rasterW / 4, rasterH - 2), rgb(22, 33, 22), BF
             pic.DrawWidth = 2
-            pic.Line (0, rasterH * 3 / 4)-(rasterW / 4, rasterH - 2), rgb(144, 144, 144), B
+            pic.Line (0, rasterH * 3 / 4)-(rasterW / 4, rasterH - 2), rgb(88, 88, 88), B
             pic.DrawWidth = 1
             For i = 0 To n
                  With .tgts(i)
@@ -848,15 +879,7 @@ Public Sub Render()
                                      If .leftticks > 0 Then
                                          pic.Circle (rasterX, rasterY), projR, col
                                          pic.Circle (rasterX, rasterY), projR / 3, col
-                                         If gv.isShowTgtDist = True Then
-                                             pic.CurrentX = rasterX + projR + 2
-                                             pic.CurrentY = rasterY - 5
-                                             If .distToHit < 255 Then
-                                                 txtCol = CLng(.distToHit)
-                                                 pic.ForeColor = rgb(255, txtCol, 0)
-                                                 pic.Print Format(.distToHit, "0")
-                                             End If
-                                         End If
+
                                      Else
                                          pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col
                                          pic.Line (rasterX + projR, rasterY - projR)-(rasterX - projR, rasterY + projR), col
@@ -876,6 +899,14 @@ PostRender:
             pic.Font.Name = "黑体"
             pic.ForeColor = rgb(0, 128, 255)
             pic.Print Format(gv.zoomFactor, "#X倍放大")
+        End If
+        If gv.isPaused = True Then
+            pic.CurrentX = 30
+            pic.CurrentY = 60
+            pic.Font.Size = 24
+            pic.Font.Name = "黑体"
+            pic.ForeColor = rgb(0, 128, 255)
+            pic.Print "暂停"
         End If
 
         If True Then 'gv.state = STATE_PLAYING Or gv.state = STATE_INIT Then
@@ -969,7 +1000,7 @@ Public Sub ResetTurretAmmo(turret As Turret_t)
     With turret.ammo
         .cooldownTickRem = 0
         .reloadTickRem = 0
-        .ammoRemCnt = 3000 - Form1.cmbDifficulty.ListIndex * 250
+        .ammoRemCnt = 3000 - Form1.cmbDifficulty.ListIndex * 200
         .clipAmmoRemCnt = .clipSize
         .reloadTickCnt = 1150
         If Form1.chkJoy.Value <> 0 Then
@@ -1036,8 +1067,9 @@ End Function
 Public Sub SpawnTarget()
     Dim ptPos As Point3D_t
     Dim i As Long, n As Long
-    
-    ptPos.z = 475 + Rnd * 600
+    Dim diffLv As Single
+    diffLv = (Form1.cmbDifficulty.ListIndex + 1)
+    ptPos.z = 500 - diffLv * 15 + Rnd ^ 2 * 1400
     ptPos.X = (ptPos.z * Rnd - ptPos.z / 2) / 3
     ptPos.Y = (ptPos.z * Rnd - ptPos.z * 3 / 4) / 2 - 150
     
@@ -1049,8 +1081,8 @@ Public Sub SpawnTarget()
             .maxTicks = CLng(11000 + Rnd * 16500) * 5
             .leftticks = .maxTicks / 1.3
             .ptPos = ptPos
-            .vecV.X = Rnd * 1
-            .vecV.Y = 150 + Rnd * 50
+            .vecV.X = (Rnd - 0.5) * diffLv * 150
+            .vecV.Y = (Rnd - 0.5) * diffLv * 150
             .vecV.z = Rnd * 1
             .vecA.X = 0: .vecA.Y = 0: .vecA.z = 0
             .hp = 100 + Rnd * 400 + Form1.cmbDifficulty.ListIndex * 75
@@ -1092,25 +1124,46 @@ Public Function CheckHit(tgt As Target_t) As Long
         End With
     Next j
 End Function
-
+Public Function CalcChlngScoreFac()
+    Dim fac As Single
+    Dim i As Long
+    fac = 1
+    With gv.chlng
+    For i = 1 To CHLNG_COUNT
+        If .isEn(i - 1) <> 0 Then
+            fac = fac * (1 + .lvs(i - 1) / 20)
+        End If
+    Next i
+    End With
+    CalcChlngScoreFac = fac
+End Function
+Public Sub CalcProjVelMo0()
+    Dim chlng As Long
+    chlng = gv.chlng.isEn(CHLNG_BULLET_VEL0) * gv.chlng.lvs(CHLNG_BULLET_VEL0)
+    gv.turret.projVelMo0 = gv.dfcltLv(Form1.cmbDifficulty.ListIndex) * (3 / (3 + chlng))
+End Sub
 Public Sub ProcTargets()
     Dim n As Long
-    Dim i As Long
+    Dim i As Long, j As Long, m As Long
     Dim vecErr As Vector3D_t
     Dim rndFac As Single
     Dim decay As Single
     Dim damage As Single
-    Dim distToHit As Single
     Dim xyRndFac As Single, zRndFac As Single
     Dim isGod As Boolean
+    Dim chlng As Single, chlngMove As Single
+    Dim closestDist As Single
+    closestDist = 1000000
     decay = 1 - 7 / DRAW_PER_SEC
     n = MAX_TGT_CNT - 1
     rndFac = (1 + Form1.cmbDifficulty.ListIndex / 5)
     isGod = False
     If Form1.cmbDifficulty.ListIndex = Form1.cmbDifficulty.ListCount - 1 Then
-        rndFac = rndFac * 1.33
+        rndFac = rndFac * 1.25
         isGod = True
     End If
+    chlng = gv.chlng.isEn(CHLNG_ENEMY_DAMAGE) * gv.chlng.lvs(CHLNG_ENEMY_DAMAGE)
+    chlngMove = (gv.chlng.isEn(CHLNG_ENEMY_MOVE) * gv.chlng.lvs(CHLNG_ENEMY_MOVE) / 5 + 1)
     For i = 0 To n
         With gv.tgts(i)
         If .leftticks <> 0 Then
@@ -1118,40 +1171,9 @@ Public Sub ProcTargets()
                 .ptPos.X = .ptPos.X + .vecV.X / 1000
                 .ptPos.Y = .ptPos.Y + .vecV.Y / 1000
                 .ptPos.z = .ptPos.z + .vecV.z / 1000
-                .distToHit = M3D_CalcDotDotDistance(.ptPos, gv.cam.pos)
-                If .distToHit < 3.6 Then
-                    gv.hitCnt = gv.hitCnt + 1
-                    'If Form1.chkJoy.Value = 0 Then
-                        damage = 20 + Rnd * 20 + Form1.cmbDifficulty.ListIndex * 6
-                        gv.newHitTick = damage * 255 \ 600 + 4
-                        If Form1.chkJoy.Value <> 0 Then damage = damage / 10
-                        gv.myHP = gv.myHP - damage
-                        If gv.myHP < 0 Then
-                            gv.myHP = 0
-                            gv.newHitTick = 42
-                            gv.state = STATE_SCORE
-                        End If
-                    'End If
-                    .leftticks = 0
-                    gv.escapeCnt = gv.escapeCnt + 1
-                    GoTo NextLoop
-                End If
-                If .ptPos.z < gv.cam.viewDist Then
-                    .leftticks = 0
-                    gv.escapeCnt = gv.escapeCnt + 1
-                    GoTo NextLoop
-                End If
-                                
-                distToHit = M3D_CalcDotDotDistance(.ptPos, gv.cam.pos)
-                xyRndFac = 1
-                zRndFac = rndFac
-                If distToHit < 250 Then
-                    xyRndFac = (700 / (100 + distToHit) * rndFac) ^ 0.75
-                    'zRndFac = 350 / (100 + distToHit) / rndFac
-                End If
-                .vecA.z = .vecA.z * 0.72 + (Rnd * 2 - 1) * rndFac
-                .vecA.X = .vecA.X * 0.75 + (Rnd * 4 - 2) * rndFac
-                .vecA.Y = .vecA.Y * 0.75 + (Rnd * 4 - 2) * rndFac
+                .vecA.z = .vecA.z * 0.72 + (Rnd * 2 - 1#) * rndFac * chlngMove
+                .vecA.X = .vecA.X * 0.75 + (Rnd * 4 - 2) * rndFac * chlngMove
+                .vecA.Y = .vecA.Y * 0.75 + (Rnd * 4 - 2) * rndFac * chlngMove
                 
                 .vecV.X = .vecV.X + .vecA.X
                 .vecV.Y = .vecV.Y + .vecA.Y
@@ -1161,15 +1183,50 @@ Public Sub ProcTargets()
                 vecErr.Y = (gv.turret.cam.pos.Y - .ptPos.Y)
                 vecErr.z = (gv.turret.cam.pos.z - .ptPos.z)
                 GetUnitVector vecErr, vecErr
+                xyRndFac = 1
+                zRndFac = rndFac
+                .distToHit = M3D_CalcDotDotDistance(.ptPos, gv.cam.pos)
+                If .ptPos.z > 0 And .ptPos.z < 500 Then ' .distToHit < 400 Then
+                    xyRndFac = (700 / (150 + .distToHit) * rndFac) '^ 0.8
+                    'zRndFac = 350 / (100 + distToHit) / rndFac
+                End If
                 ' magic guide
                 .ptPos.X = .ptPos.X + vecErr.X * 0.5 * xyRndFac
                 .ptPos.Y = .ptPos.Y + vecErr.Y * 0.5 * xyRndFac
-                .ptPos.z = .ptPos.z + vecErr.z * 0.5 * rndFac
-                If .ptPos.z > 20 Then
+                .ptPos.z = .ptPos.z + vecErr.z * 0.5 * rndFac * chlngMove
+                If .ptPos.z > 12 Then
                     .vecA.z = .vecA.z + vecErr.z * rndFac * 0.05
                 End If
             End If
-            ' 检查是否被射中
+            .distToHit = M3D_CalcDotDotDistance(.ptPos, gv.cam.pos)
+            If .distToHit < closestDist Then
+                closestDist = .distToHit
+            End If
+            If .distToHit < 5.8 Then
+                '被敌导弹命中
+                gv.hitCnt = gv.hitCnt + 1
+                'If Form1.chkJoy.Value = 0 Then
+                    damage = 20 + Rnd * (20 + chlng * 10) + Form1.cmbDifficulty.ListIndex * 6
+                    gv.newHitTick = damage * 255 \ 600 + 4
+                    If Form1.chkJoy.Value <> 0 Then damage = damage / 10
+                    gv.myHP = gv.myHP - damage
+                    If gv.myHP < 0 Then
+                        gv.myHP = 0
+                        gv.newHitTick = 42
+                        gv.state = STATE_SCORE
+                    End If
+                'End If
+                .leftticks = 0
+                gv.escapeCnt = gv.escapeCnt + 1
+                GoTo NextLoop
+            End If
+            If .ptPos.z < gv.cam.viewDist Then
+                .leftticks = 0
+                gv.escapeCnt = gv.escapeCnt + 1
+                GoTo NextLoop
+            End If
+
+            ' 检查炮弹是否射中敌方导弹
             For j = 0 To m
                 CheckHit gv.tgts(i)
             Next j
@@ -1199,8 +1256,19 @@ Public Sub ProcTargets()
         End With
 NextLoop:
     Next i
+    
+    If gv.isFiring = False And closestDist > 160 + Form1.cmbDifficulty.ListIndex * 20 And Form1.chkAutoReload.Value <> 0 And _
+        gv.turret.ammo.clipAmmoRemCnt / gv.turret.ammo.clipSize < 0.75 Then
+        With gv.turret
+        If .ammo.reloadTickRem = 0 And .ammo.clipAmmoRemCnt < .ammo.clipSize And .ammo.ammoRemCnt <> 0 Then
+            .ammo.ammoRemCnt = .ammo.ammoRemCnt + .ammo.clipAmmoRemCnt
+            .ammo.clipAmmoRemCnt = 0
+            .ammo.reloadTickRem = .ammo.reloadTickCnt
+        End If
+        End With
+    End If
     n = Rnd * 100000
-    If n < 105 + 25 * Form1.cmbDifficulty.ListIndex Then
+    If n < 105 + 23 * Form1.cmbDifficulty.ListIndex Then
         If gv.state = STATE_PLAYING Then
             SpawnTarget
         End If
@@ -1211,7 +1279,7 @@ Public Sub GameStep()
     Dim i As Long, projCnt As Long
     Dim decay As Single
 
-    If gv.myHP < 100 Then
+    If gv.state = STATE_PLAYING And gv.myHP < 100 Then
         gv.myHP = gv.myHP + 1 / 1024
     End If
 
@@ -1357,7 +1425,7 @@ Public Sub Main()
     gv.state = STATE_INIT
     gv.isShowFloatingStat = True
     gv.keyCmd.keySensitivity = 0.01
-    gv.cam.fovDgr = 100#
+    gv.cam.fovDgr = 125#
     gv.cam.pos.X = 0
     gv.cam.pos.Y = 0.1
     gv.cam.pos.z = 0.5
@@ -1367,17 +1435,18 @@ Public Sub Main()
     gv.cam.viewDist = gv.cam.pos.z + 0.5
     gv.zoomFactor = 1
     sFile = Dir(App.Path & "\fpm*.wav")
-    For i = 0 To 100 - 1
-        
+    For i = 1 To CHLNG_COUNT
+        gv.chlng.isEn(i - 1) = 0
+        gv.chlng.lvs(i - 1) = 1
     Next i
 
-    gv.dfcltLv(0) = 1680
-    gv.dfcltLv(1) = 1200
-    gv.dfcltLv(2) = 1111
-    gv.dfcltLv(3) = 1028
-    gv.dfcltLv(4) = 952
-    gv.dfcltLv(5) = 882
-    gv.dfcltLv(6) = 441
+    gv.dfcltLv(0) = 1250
+    gv.dfcltLv(1) = 1130
+    gv.dfcltLv(2) = 983
+    gv.dfcltLv(3) = 854
+    gv.dfcltLv(4) = 743
+    gv.dfcltLv(5) = 646
+    gv.dfcltLv(6) = 488
     n = MAX_PROJ_CNT - 1
     For i = 0 To n
         g_projs(i).leftticks = 0
@@ -1388,6 +1457,8 @@ Public Sub Main()
     gv.turret.cam.pos.X = 2
     gv.turret.cam.pos.Y = -1
     gv.turret.cam.pos.z = -1
+    
+    gv.isShowTgtDist = True
     
     gv.turret.tickToNextFire = 1
     'gv.turret.tickReload = 1000# * 60 / CSng(gv.turret.fpm)
