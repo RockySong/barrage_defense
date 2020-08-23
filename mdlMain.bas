@@ -190,7 +190,8 @@ Public Const CHLNG_BULLET_VEL0 As Long = 0
 Public Const CHLNG_RESCUE_SLOW As Long = 1
 Public Const CHLNG_ENEMY_MOVE As Long = 2
 Public Const CHLNG_ENEMY_DAMAGE As Long = 3
-Public Const CHLNG_COUNT As Long = 4
+Public Const CHLNG_BULLET_DAMAGE As Long = 4
+Public Const CHLNG_COUNT As Long = 5
 Public Type Chlng_t
     lvs(0 To 10) As Long    ' 0 = no challenge
     isEn(0 To 10) As Long
@@ -478,6 +479,7 @@ Public Sub Render()
     Dim intProjR As Long
     Dim focal As Single
     Dim isArc As Boolean
+    Dim dRX As Single, dRY As Single, dRXNrm As Single, dRYNrm As Single
     Set pic = Form1.pic
     If Form1.chkArc.Value <> 0 Then isArc = True Else isArc = False
     Form1.lblAmmo.Caption = gv.turret.ammo.clipAmmoRemCnt & "/" & gv.turret.ammo.ammoRemCnt
@@ -537,7 +539,11 @@ Public Sub Render()
             Else
                 Form1.lblScore.BackColor = rgb(50, 0, 0)
                 Form1.lblScore.ForeColor = rgb(255, 150, 150)
-                Form1.lblScore.Caption = "请再接再厉吧！" & Chr$(13) & Chr$(10)
+                If score <> 0 Then
+                    Form1.lblScore.Caption = "请再接再厉吧！" & Chr$(13) & Chr$(10)
+                Else
+                    Form1.lblScore.Caption = "请再接再厉吧(本局不计)！" & Chr$(13) & Chr$(10)
+                End If
                 PlaySound App.Path & "\defeat.wav", 0, SND_ASYNC Or SND_FILENAME Or SND_LOOP
             End If
             If isNewHighScore = True Then
@@ -605,55 +611,66 @@ Public Sub Render()
                             ' now only supports (0,0,0) position (0,0,1) norm vector camera
                             prjPt.X = .ptPos.X * focal / dist / 2 * gv.zoomFactor
                             prjPt.Y = .ptPos.Y * focal / dist / 2 * gv.zoomFactor
-                            If Abs(prjPt.X) < xMax And Abs(prjPt.Y) < yMax Then
-                                rasterX = rasterW / 2 * prjPt.X / xMax + rasterW / 2
-                                rasterY = -rasterH / 2 * prjPt.Y / yMax + rasterH / 2
-                                
-                                If dist - cam.viewDist > 1 Then
-                                    projR = 15 * 60 / ((dist - cam.viewDist))
-                                Else
-                                    projR = 15 * 60
-                                End If
-                                projR = projR * gv.zoomFactor
-                                If projR < 1 Then
-                                    bri = projR * 255
-                                    projR = 1
-                                    If bri < 35 Then
-                                        .leftticks = 0
-                                    End If
-                                Else
-                                    bri = 255
-                                End If
-                                If .leftticks > 0 Then
-                                    bri = bri / (5 - CSng(.leftticks) / .maxTicks * 4)
-                                    col = rgb(bri, bri / (2 - (.hp / .hp0)), bri / (1 + 3 * (.hp0 - .hp) / .hp0))
-                                Else
-                                    bri = bri * (120 + .deadTicks) / 1200
-                                    col = rgb(bri, 0, 0)
-                                End If
-                                If .distToHit < 255 And .leftticks > 0 Then
-                                    If .leftticks Mod 200 < 100 Then
-                                        col = rgb(255, 255, 255)
-                                    End If
-                                End If
-                                If .leftticks > 0 Then
-                                    pic.Circle (rasterX, rasterY), projR, col
-                                    pic.Circle (rasterX, rasterY), projR / 3, col
-                                    If gv.isShowTgtDist = True Then
-                                        pic.CurrentX = rasterX + projR + 2
-                                        pic.CurrentY = rasterY - 5
-                                        If .distToHit < 510 * gv.zoomFactor Then
-                                            txtCol = CLng(.distToHit / 2)
-                                            pic.ForeColor = rgb(255, txtCol, 0)
-                                            pic.Print Format(.distToHit, "0")
-                                        End If
-                                    End If
-                                Else
-                                    pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col
-                                    pic.Line (rasterX + projR, rasterY - projR)-(rasterX - projR, rasterY + projR), col
-                                End If
-                                'pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col, BF
+                            rasterX = rasterW / 2 * prjPt.X / xMax + rasterW / 2
+                            rasterY = -rasterH / 2 * prjPt.Y / yMax + rasterH / 2
+                            
+                            dist = M3D_CalcDotDotDistance(.ptPos, cam.pos)
+                            If dist - cam.viewDist > 1 Then
+                                projR = 12 * 60 / ((dist - cam.viewDist))
+                            Else
+                                projR = 12 * 60
                             End If
+                            projR = projR * gv.zoomFactor
+                            
+                            If rasterX > rasterW Or rasterX < 0 Or rasterY >= rasterH Or rasterY < 0 Then
+                                dRX = rasterX - rasterW / 2: dRY = rasterY - rasterH / 2
+                                dRXNrm = Abs(dRX) / rasterW * 2: dRYNrm = Abs(dRY) / rasterH * 2
+                                If dRXNrm / dRYNrm > CSng(rasterW) / rasterH Then
+                                    '水平方向出镜更多
+                                    dRX = dRX / dRXNrm: dRY = dRY / dRXNrm
+                                Else
+                                    dRX = dRX / dRYNrm: dRY = dRY / dRYNrm
+                                End If
+                                rasterX = dRX + rasterW / 2: rasterY = dRY + rasterH / 2
+                            End If
+                            If projR < 1 Then
+                                bri = projR * 255
+                                projR = 1
+                                If bri < 35 Then
+                                    .leftticks = 0
+                                End If
+                            Else
+                                bri = 255
+                            End If
+                            If .leftticks > 0 Then
+                                bri = bri / (5 - CSng(.leftticks) / .maxTicks * 4)
+                                col = rgb(bri, bri / (2 - (.hp / .hp0)), bri / (1 + 3 * (.hp0 - .hp) / .hp0))
+                            Else
+                                bri = bri * (120 + .deadTicks) / 1200
+                                col = rgb(bri, 0, 0)
+                            End If
+                            If .distToHit < 255 And .leftticks > 0 Then
+                                If .leftticks Mod 200 < 100 Then
+                                    col = rgb(255, 255, 255)
+                                End If
+                            End If
+                            If .leftticks > 0 Then
+                                pic.Circle (rasterX, rasterY), projR, col
+                                pic.Circle (rasterX, rasterY), projR / 3, col
+                                If gv.isShowTgtDist = True Then
+                                    pic.CurrentX = rasterX + projR + 2
+                                    pic.CurrentY = rasterY - 5
+                                    If .distToHit < 510 * gv.zoomFactor Then
+                                        txtCol = CLng(.distToHit / 2)
+                                        pic.ForeColor = rgb(255, txtCol, 0)
+                                        pic.Print Format(.distToHit, "0")
+                                    End If
+                                End If
+                            Else
+                                pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col
+                                pic.Line (rasterX + projR, rasterY - projR)-(rasterX - projR, rasterY + projR), col
+                            End If
+                            'pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col, BF
                         End If
                     End If
             End With
@@ -702,7 +719,7 @@ Public Sub Render()
                                 pic.PSet (rasterX, rasterY), rgb(bri, bri, 0)
                             End If
                             bri = 255 * (projR - intProjR)
-                            If bri > 48 Then
+                            If bri > 64 Then
                                 intProjR = intProjR + 1
                                 pic.Line (rasterX - intProjR, rasterY - intProjR)-(rasterX + intProjR, rasterY + intProjR), rgb(bri, bri, 0), B
                             End If
@@ -1101,6 +1118,9 @@ Public Function CheckHit(tgt As Target_t) As Long
     CheckHit = 0
     Dim dist As Single
     Dim m As Long, j As Long
+    Dim chlngDamage As Single
+    chlngDamage = 1 / 1.2 ^ (gv.chlng.isEn(CHLNG_BULLET_DAMAGE) * gv.chlng.lvs(CHLNG_BULLET_DAMAGE))
+    
     m = MAX_PROJ_CNT - 1
     For j = 0 To m
         With g_projs(j)
@@ -1110,7 +1130,7 @@ Public Function CheckHit(tgt As Target_t) As Long
                     If dist < 5 Then
                         dist = Sqr((.ptPos.X - tgt.ptPos.X) ^ 2 + (.ptPos.Y - tgt.ptPos.Y) ^ 2)
                         .leftticks = 0 ' 炮弹击中后消失
-                        tgt.hp = tgt.hp - (100 + 700 / (dist + 1))
+                        tgt.hp = tgt.hp - (100 + 700 / (dist + 1)) * chlngDamage
                         If tgt.hp <= 0 Then
                             tgt.leftticks = 0
                             tgt.deadTicks = 1200
@@ -1131,7 +1151,7 @@ Public Function CalcChlngScoreFac()
     With gv.chlng
     For i = 1 To CHLNG_COUNT
         If .isEn(i - 1) <> 0 Then
-            fac = fac * (1 + .lvs(i - 1) / 20)
+            fac = fac + .lvs(i - 1) / 20
         End If
     Next i
     End With
@@ -1140,7 +1160,7 @@ End Function
 Public Sub CalcProjVelMo0()
     Dim chlng As Long
     chlng = gv.chlng.isEn(CHLNG_BULLET_VEL0) * gv.chlng.lvs(CHLNG_BULLET_VEL0)
-    gv.turret.projVelMo0 = gv.dfcltLv(Form1.cmbDifficulty.ListIndex) * (3 / (3 + chlng))
+    gv.turret.projVelMo0 = gv.dfcltLv(Form1.cmbDifficulty.ListIndex) * (2 / (2 + chlng))
 End Sub
 Public Sub ProcTargets()
     Dim n As Long
@@ -1153,13 +1173,14 @@ Public Sub ProcTargets()
     Dim isGod As Boolean
     Dim chlng As Single, chlngMove As Single
     Dim closestDist As Single
+    Dim autoRldSafeThsld As Single
     closestDist = 1000000
     decay = 1 - 7 / DRAW_PER_SEC
     n = MAX_TGT_CNT - 1
-    rndFac = (1 + Form1.cmbDifficulty.ListIndex / 5)
+    rndFac = (1 + Form1.cmbDifficulty.ListIndex / 6.2)
     isGod = False
     If Form1.cmbDifficulty.ListIndex = Form1.cmbDifficulty.ListCount - 1 Then
-        rndFac = rndFac * 1.25
+        rndFac = rndFac * 1.05
         isGod = True
     End If
     chlng = gv.chlng.isEn(CHLNG_ENEMY_DAMAGE) * gv.chlng.lvs(CHLNG_ENEMY_DAMAGE)
@@ -1256,8 +1277,8 @@ Public Sub ProcTargets()
         End With
 NextLoop:
     Next i
-    
-    If gv.isFiring = False And closestDist > 160 + Form1.cmbDifficulty.ListIndex * 20 And Form1.chkAutoReload.Value <> 0 And _
+    autoRldSafeThsld = (140 + Form1.cmbDifficulty.ListIndex * 16) * (1 + gv.chlng.isEn(CHLNG_ENEMY_MOVE) * gv.chlng.lvs(CHLNG_ENEMY_MOVE) / 12)
+    If gv.isFiring = False And closestDist > 150 + Form1.cmbDifficulty.ListIndex * 18 And Form1.chkAutoReload.Value <> 0 And _
         gv.turret.ammo.clipAmmoRemCnt / gv.turret.ammo.clipSize < 0.75 Then
         With gv.turret
         If .ammo.reloadTickRem = 0 And .ammo.clipAmmoRemCnt < .ammo.clipSize And .ammo.ammoRemCnt <> 0 Then
@@ -1441,12 +1462,12 @@ Public Sub Main()
     Next i
 
     gv.dfcltLv(0) = 1250
-    gv.dfcltLv(1) = 1130
-    gv.dfcltLv(2) = 983
-    gv.dfcltLv(3) = 854
-    gv.dfcltLv(4) = 743
-    gv.dfcltLv(5) = 646
-    gv.dfcltLv(6) = 488
+    gv.dfcltLv(1) = 1147
+    gv.dfcltLv(2) = 1052
+    gv.dfcltLv(3) = 965
+    gv.dfcltLv(4) = 886
+    gv.dfcltLv(5) = 812
+    gv.dfcltLv(6) = 684
     n = MAX_PROJ_CNT - 1
     For i = 0 To n
         g_projs(i).leftticks = 0

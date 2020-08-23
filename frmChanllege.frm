@@ -12,6 +12,27 @@ Begin VB.Form frmChanllege
    ScaleWidth      =   340
    Begin VB.CheckBox chkCnlg 
       BackColor       =   &H00404040&
+      Caption         =   "炮弹威力下降"
+      BeginProperty Font 
+         Name            =   "黑体"
+         Size            =   15
+         Charset         =   134
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00E0E0E0&
+      Height          =   375
+      Index           =   4
+      Left            =   240
+      TabIndex        =   18
+      ToolTipText     =   "10倍子弹时间, 充足弹药, 受到1/10伤害"
+      Top             =   2520
+      Width           =   2295
+   End
+   Begin VB.CheckBox chkCnlg 
+      BackColor       =   &H00404040&
       Caption         =   "敌导弹更致命"
       BeginProperty Font 
          Name            =   "黑体"
@@ -94,6 +115,63 @@ Begin VB.Form frmChanllege
       Top             =   480
       Width           =   2295
    End
+   Begin VB.Label lblChlng 
+      BackColor       =   &H00808080&
+      BeginProperty Font 
+         Name            =   "黑体"
+         Size            =   14.25
+         Charset         =   134
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00E0E0E0&
+      Height          =   360
+      Index           =   14
+      Left            =   2640
+      TabIndex        =   21
+      Top             =   2520
+      Width           =   195
+   End
+   Begin VB.Label lblChlng 
+      BackColor       =   &H00808080&
+      BeginProperty Font 
+         Name            =   "黑体"
+         Size            =   14.25
+         Charset         =   134
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00E0E0E0&
+      Height          =   360
+      Index           =   13
+      Left            =   3000
+      TabIndex        =   20
+      Top             =   2520
+      Width           =   195
+   End
+   Begin VB.Label lblChlng 
+      BackColor       =   &H00808080&
+      BeginProperty Font 
+         Name            =   "黑体"
+         Size            =   14.25
+         Charset         =   134
+         Weight          =   400
+         Underline       =   0   'False
+         Italic          =   0   'False
+         Strikethrough   =   0   'False
+      EndProperty
+      ForeColor       =   &H00E0E0E0&
+      Height          =   360
+      Index           =   12
+      Left            =   3360
+      TabIndex        =   19
+      Top             =   2520
+      Width           =   195
+   End
    Begin VB.Label lblOK 
       Appearance      =   0  'Flat
       BackColor       =   &H00404040&
@@ -131,7 +209,7 @@ Begin VB.Form frmChanllege
       Height          =   315
       Left            =   360
       TabIndex        =   16
-      Top             =   2880
+      Top             =   3240
       Width           =   4200
    End
    Begin VB.Label lblChlng 

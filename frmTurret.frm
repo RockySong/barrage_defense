@@ -550,7 +550,6 @@ Function playalarmsound(mp3filename, flag)
     ret = ret
 End Function
 
-
 Private Sub cmbDifficulty_Click()
     CalcProjVelMo0
     
@@ -875,7 +874,7 @@ Private Sub tmrDraw_Timer()
     dt = ts - gv.ts0
     If dt < 2 Then Exit Sub
     gv.ts0 = ts
-    If dt > 60 Then dt = 60
+    If dt > 150 Then dt = 100
     If gv.isPaused = True Then
         dt = 2
     End If
