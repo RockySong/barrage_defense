@@ -1184,7 +1184,7 @@ Public Sub ProcTargets()
         isGod = True
     End If
     chlng = gv.chlng.isEn(CHLNG_ENEMY_DAMAGE) * gv.chlng.lvs(CHLNG_ENEMY_DAMAGE)
-    chlngMove = (gv.chlng.isEn(CHLNG_ENEMY_MOVE) * gv.chlng.lvs(CHLNG_ENEMY_MOVE) / 5 + 1)
+    chlngMove = (gv.chlng.isEn(CHLNG_ENEMY_MOVE) * gv.chlng.lvs(CHLNG_ENEMY_MOVE) / 10 + 1)
     For i = 0 To n
         With gv.tgts(i)
         If .leftticks <> 0 Then
