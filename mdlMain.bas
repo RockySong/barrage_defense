@@ -50,7 +50,7 @@ Public Const DEGREE_PER_ARC As Single = 57.29578
 Public Const MAX_PROJ_CNT As Long = 600
 Public Const MAX_TGT_CNT As Long = 16
 Public Const DRAW_PER_SEC As Long = 30
-Public Const PROJ_LIFETIME_SEC As Single = 4
+Public Const PROJ_LIFETIME_SEC As Single = 2.5
 Public Const PROJ_TAIL_CNT As Long = 8
 '----------------------------------types-----------------------------
 Public Type State_t
@@ -625,6 +625,8 @@ Public Sub Render()
                             If rasterX > rasterW Or rasterX < 0 Or rasterY >= rasterH Or rasterY < 0 Then
                                 dRX = rasterX - rasterW / 2: dRY = rasterY - rasterH / 2
                                 dRXNrm = Abs(dRX) / rasterW * 2: dRYNrm = Abs(dRY) / rasterH * 2
+                                If dRYNrm < 0.001 Then dRYNrm = 0.001
+                                If dRXNrm < 0.001 Then dRXNrm = 0.001
                                 If dRXNrm / dRYNrm > CSng(rasterW) / rasterH Then
                                     '水平方向出镜更多
                                     dRX = dRX / dRXNrm: dRY = dRY / dRXNrm
@@ -1214,7 +1216,7 @@ Public Sub ProcTargets()
                 ' magic guide
                 .ptPos.X = .ptPos.X + vecErr.X * 0.5 * xyRndFac
                 .ptPos.Y = .ptPos.Y + vecErr.Y * 0.5 * xyRndFac
-                .ptPos.z = .ptPos.z + vecErr.z * 0.5 * rndFac * chlngMove
+                .ptPos.z = .ptPos.z + vecErr.z * 0.5 * rndFac
                 If .ptPos.z > 12 Then
                     .vecA.z = .vecA.z + vecErr.z * rndFac * 0.05
                 End If
