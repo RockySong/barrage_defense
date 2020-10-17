@@ -629,8 +629,8 @@ Private Sub ProcFireCmd(X As Single, Y As Single)
     
     halfW = pic.ScaleWidth / 2
     halfH = pic.ScaleHeight / 2
-    xRatio = (X - halfW) / halfW * 1.25 * 2.8
-    yRatio = -(Y - halfH) / halfH * 0.83 * 2.8
+    xRatio = (X - halfW) / halfW * 1.25 * 2.8 / gv.zoomFactor * 1.05
+    yRatio = -(Y - halfH) / halfH * 0.83 * 2.8 / gv.zoomFactor * 1.05
     
     gv.turret.cam.vecN.X = xRatio
     gv.turret.cam.vecN.Y = yRatio
@@ -668,8 +668,13 @@ Private Sub pic_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As
     ProcFireCmd X, Y
     
     If Button = 2 Then
-        gv.turret.fastFireFactor = 5
-        gv.turret.burstRem = 5
+        If gv.turret.autoMode = 1 Then
+            gv.turret.fastFireFactor = 11
+            gv.turret.burstRem = 11
+        Else
+            gv.turret.fastFireFactor = 3
+            gv.turret.burstRem = 3
+        End If
         gv.turret.tickToNextFire = gv.turret.tickReload
     Else
         gv.turret.fastFireFactor = 1#
@@ -690,7 +695,11 @@ End Sub
 Private Sub pic_MouseMove(Button As Integer, Shift As Integer, X As Single, Y As Single)
     If Button <> 0 Then
         If Button = 2 Then
-            gv.turret.fastFireFactor = 5
+            If gv.turret.autoMode = 1 Then
+                gv.turret.fastFireFactor = 11
+            Else
+                gv.turret.fastFireFactor = 3
+            End If
         Else
             gv.turret.fastFireFactor = 1
         End If
@@ -876,7 +885,7 @@ Private Sub tmrDraw_Timer()
     gv.ts0 = ts
     If dt > 150 Then dt = 100
     If gv.isPaused = True Then
-        dt = 2
+        dt = 3
     End If
     If gv.isButtletTimeOn = True Then
         gv.bulletTimeTick = gv.bulletTimeTick - dt

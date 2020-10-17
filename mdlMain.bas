@@ -591,10 +591,74 @@ Public Sub Render()
         DrawAmmo Form1.picHUD
     End If
     With gv
+    If False Then ' gv.zoomFactor > 1 Then
+            n = MAX_TGT_CNT - 1
+            pic.Line (0, rasterH * 3 / 4)-(rasterW / 4, rasterH - 2), rgb(22, 33, 22), BF
+            pic.DrawWidth = 2
+            pic.Line (0, rasterH * 3 / 4)-(rasterW / 4, rasterH - 2), rgb(88, 88, 88), B
+            pic.DrawWidth = 1
+            For i = 0 To n
+                 With .tgts(i)
+                     If .leftticks <> 0 Or .deadTicks <> 0 Then
+                         vecToCam.X = .ptPos.X - cam.pos.X
+                         vecToCam.Y = .ptPos.Y - cam.pos.Y
+                         vecToCam.z = .ptPos.z - cam.pos.z
+                         dist = M3D_CalcDotPlaneDistance(.ptPos, cam.plane)
+                             If .ptPos.z > cam.viewDist Then
+                                 angle = CalcVectorAngle(vecToCam, cam.vecN)
+                                 ' now only supports (0,0,0) position (0,0,1) norm vector camera
+                                 prjPt.X = .ptPos.X * focal / dist / 2
+                                 prjPt.Y = .ptPos.Y * focal / dist / 2
+                                 If Abs(prjPt.X) < xMax And Abs(prjPt.Y) < yMax Then
+                                     rasterX = (rasterW / 2 * prjPt.X / xMax + rasterW / 2) / 4
+                                     rasterY = (-rasterH / 2 * prjPt.Y / yMax + rasterH / 2) / 4 + rasterH * 3 / 4
+                                     
+                                     If dist - cam.viewDist > 1 Then
+                                         projR = 15 * 60 / ((dist - cam.viewDist))
+                                     Else
+                                         projR = 15 * 60
+                                     End If
+                                     projR = projR / 4
+                                     If projR < 1 Then
+                                         bri = projR * 255
+                                         projR = 1
+                                         If bri < 35 Then
+                                             .leftticks = 0
+                                         End If
+                                     Else
+                                         bri = 255
+                                     End If
+                                     If .leftticks > 0 Then
+                                         bri = bri / (5 - CSng(.leftticks) / .maxTicks * 4)
+                                         col = rgb(bri, bri / (2 - (.hp / .hp0)), bri / (1 + 3 * (.hp0 - .hp) / .hp0))
+                                     Else
+                                         bri = bri * (120 + .deadTicks) / 1200
+                                         col = rgb(bri, 0, 0)
+                                     End If
+                                     If .distToHit < 255 And .leftticks > 0 Then
+                                         If .leftticks Mod 200 < 100 Then
+                                             col = rgb(255, 255, 255)
+                                         End If
+                                     End If
+                                     If .leftticks > 0 Then
+                                         pic.Circle (rasterX, rasterY), projR, col
+                                         pic.Circle (rasterX, rasterY), projR / 3, col
+
+                                     Else
+                                         pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col
+                                         pic.Line (rasterX + projR, rasterY - projR)-(rasterX - projR, rasterY + projR), col
+                                     End If
+                                     'pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col, BF
+                                 End If
+                             End If
+                         End If
+                 End With
+             Next i
+        End If
         pic.DrawStyle = 0
         pic.DrawWidth = 2
         n = MAX_TGT_CNT - 1
-        pic.Font.Size = 10
+        pic.Font.Size = 12
         pic.Font.Bold = True
         pic.Font.Name = "Consolas"
         For i = 0 To n
@@ -634,6 +698,11 @@ Public Sub Render()
                                     dRX = dRX / dRYNrm: dRY = dRY / dRYNrm
                                 End If
                                 rasterX = dRX + rasterW / 2: rasterY = dRY + rasterH / 2
+                                pic.Font.Size = 9 + projR * 2
+                                If pic.Font.Size > 40 Then pic.Font.Size = 40
+                            Else
+                                pic.Font.Size = 9 + projR / 2
+                                If pic.Font.Size > 30 Then pic.Font.Size = 30
                             End If
                             If projR < 1 Then
                                 bri = projR * 255
@@ -660,9 +729,19 @@ Public Sub Render()
                                 pic.Circle (rasterX, rasterY), projR, col
                                 pic.Circle (rasterX, rasterY), projR / 3, col
                                 If gv.isShowTgtDist = True Then
-                                    pic.CurrentX = rasterX + projR + 2
-                                    pic.CurrentY = rasterY - 5
-                                    If .distToHit < 510 * gv.zoomFactor Then
+                                        If .distToHit < 510 * gv.zoomFactor Then
+                                        pic.CurrentX = rasterX + projR + 2
+                                        pic.CurrentY = rasterY - 5
+                                        If rasterH - rasterY < 40 Then
+                                            pic.CurrentY = rasterH - 40
+                                        ElseIf rasterY < 5 Then
+                                            pic.CurrentY = 5
+                                        End If
+                                        If rasterW - rasterX < 40 Then
+                                            pic.CurrentX = rasterX - 45
+                                        ElseIf rasterX < 20 Then
+                                            pic.CurrentX = 20
+                                        End If
                                         txtCol = CLng(.distToHit / 2)
                                         pic.ForeColor = rgb(255, txtCol, 0)
                                         pic.Print Format(.distToHit, "0")
@@ -784,7 +863,6 @@ Public Sub Render()
                 dist = M3D_CalcDotPlaneDistance(aimPos, cam.plane)
                 prjPt.X = aimPos.X * focal / dist / 2 * gv.zoomFactor
                 prjPt.Y = aimPos.Y * focal / dist / 2 * gv.zoomFactor
-
                 If Abs(prjPt.X) < xMax And Abs(prjPt.Y) < yMax Then
                     rasterX = rasterW / 2 * prjPt.X / xMax + rasterW / 2
                     rasterY = -rasterH / 2 * prjPt.Y / yMax + rasterH / 2
@@ -800,6 +878,8 @@ Public Sub Render()
                     pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), rgb(gv.turret.autoMode * 255, bri, 0), B
                 End If
             Next i
+            pic.Line (X - 4, Y)-(X + 5, Y), rgb(255, 0, 0)
+            pic.Line (X, Y - 4)-(X, Y + 5), rgb(255, 0, 0)
             If gv.isShowFloatingStat = True Then
                 If X = -1 Then
                     pic.CurrentX = pic.ScaleWidth / 2
@@ -845,71 +925,7 @@ Public Sub Render()
                 pic.Font.Size = 10
             End If
         End If
-        
-        If gv.zoomFactor > 1 Then
-            n = MAX_TGT_CNT - 1
-            pic.Line (0, rasterH * 3 / 4)-(rasterW / 4, rasterH - 2), rgb(22, 33, 22), BF
-            pic.DrawWidth = 2
-            pic.Line (0, rasterH * 3 / 4)-(rasterW / 4, rasterH - 2), rgb(88, 88, 88), B
-            pic.DrawWidth = 1
-            For i = 0 To n
-                 With .tgts(i)
-                     If .leftticks <> 0 Or .deadTicks <> 0 Then
-                         vecToCam.X = .ptPos.X - cam.pos.X
-                         vecToCam.Y = .ptPos.Y - cam.pos.Y
-                         vecToCam.z = .ptPos.z - cam.pos.z
-                         dist = M3D_CalcDotPlaneDistance(.ptPos, cam.plane)
-                             If .ptPos.z > cam.viewDist Then
-                                 angle = CalcVectorAngle(vecToCam, cam.vecN)
-                                 ' now only supports (0,0,0) position (0,0,1) norm vector camera
-                                 prjPt.X = .ptPos.X * focal / dist / 2
-                                 prjPt.Y = .ptPos.Y * focal / dist / 2
-                                 If Abs(prjPt.X) < xMax And Abs(prjPt.Y) < yMax Then
-                                     rasterX = (rasterW / 2 * prjPt.X / xMax + rasterW / 2) / 4
-                                     rasterY = (-rasterH / 2 * prjPt.Y / yMax + rasterH / 2) / 4 + rasterH * 3 / 4
-                                     
-                                     If dist - cam.viewDist > 1 Then
-                                         projR = 15 * 60 / ((dist - cam.viewDist))
-                                     Else
-                                         projR = 15 * 60
-                                     End If
-                                     projR = projR / 4
-                                     If projR < 1 Then
-                                         bri = projR * 255
-                                         projR = 1
-                                         If bri < 35 Then
-                                             .leftticks = 0
-                                         End If
-                                     Else
-                                         bri = 255
-                                     End If
-                                     If .leftticks > 0 Then
-                                         bri = bri / (5 - CSng(.leftticks) / .maxTicks * 4)
-                                         col = rgb(bri, bri / (2 - (.hp / .hp0)), bri / (1 + 3 * (.hp0 - .hp) / .hp0))
-                                     Else
-                                         bri = bri * (120 + .deadTicks) / 1200
-                                         col = rgb(bri, 0, 0)
-                                     End If
-                                     If .distToHit < 255 And .leftticks > 0 Then
-                                         If .leftticks Mod 200 < 100 Then
-                                             col = rgb(255, 255, 255)
-                                         End If
-                                     End If
-                                     If .leftticks > 0 Then
-                                         pic.Circle (rasterX, rasterY), projR, col
-                                         pic.Circle (rasterX, rasterY), projR / 3, col
 
-                                     Else
-                                         pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col
-                                         pic.Line (rasterX + projR, rasterY - projR)-(rasterX - projR, rasterY + projR), col
-                                     End If
-                                     'pic.Line (rasterX - projR, rasterY - projR)-(rasterX + projR, rasterY + projR), col, BF
-                                 End If
-                             End If
-                         End If
-                 End With
-             Next i
-        End If
 PostRender:
         If gv.zoomFactor > 1 Then
             pic.CurrentX = 30
@@ -933,11 +949,11 @@ PostRender:
             pic.ForeColor = rgb(255, 255, 0)
             pic.Font.Bold = False
             pic.CurrentX = pic.ScaleWidth / 2 - 90
-            pic.CurrentY = 7
+            pic.CurrentY = 27
             pic.Font.Size = 18
             pic.Print "¾ÈÔ®µ½´ï "
             pic.CurrentX = pic.ScaleWidth / 2 + 20
-            pic.CurrentY = 4
+            pic.CurrentY = 24
             pic.Font.Size = 24
             pic.ForeColor = rgb(255, 255, 0)
             pic.Print Format(gv.gameRemainTick / 1000, "0.0")
@@ -1089,8 +1105,8 @@ Public Sub SpawnTarget()
     Dim diffLv As Single
     diffLv = (Form1.cmbDifficulty.ListIndex + 1)
     ptPos.z = 500 - diffLv * 15 + Rnd ^ 2 * 1400
-    ptPos.X = (ptPos.z * Rnd - ptPos.z / 2) / 3
-    ptPos.Y = (ptPos.z * Rnd - ptPos.z * 3 / 4) / 2 - 150
+    ptPos.X = (ptPos.z * Rnd - ptPos.z / 2)
+    ptPos.Y = (ptPos.z * Rnd - ptPos.z / 2)
     
     n = MAX_TGT_CNT - 1
     
@@ -1210,7 +1226,7 @@ Public Sub ProcTargets()
                 zRndFac = rndFac
                 .distToHit = M3D_CalcDotDotDistance(.ptPos, gv.cam.pos)
                 If .ptPos.z > 0 And .ptPos.z < 500 Then ' .distToHit < 400 Then
-                    xyRndFac = (700 / (150 + .distToHit) * rndFac) '^ 0.8
+                    xyRndFac = (800 / (200 + .distToHit) * rndFac) '^ 0.8
                     'zRndFac = 350 / (100 + distToHit) / rndFac
                 End If
                 ' magic guide
@@ -1477,9 +1493,9 @@ Public Sub Main()
     
     gv.turret.accuracyErrDiv = 3
     gv.turret.cam = gv.cam
-    gv.turret.cam.pos.X = 2
+    gv.turret.cam.pos.X = 1
     gv.turret.cam.pos.Y = -1
-    gv.turret.cam.pos.z = -1
+    gv.turret.cam.pos.z = -0.5
     
     gv.isShowTgtDist = True
     
